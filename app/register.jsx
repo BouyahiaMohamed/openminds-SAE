@@ -38,7 +38,7 @@ export default function RegisterPage() {
                                 </TouchableOpacity>
                             </View>
 
-                            <Button onPress={() => console.log('Go to Home')}>S'inscrire</Button>
+                            <Button onPress={() => console.log('Go to Home')}>S&apos;inscrire</Button>
                         </View>
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 32 }}>
