@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 export default function SplashPage() {
     useEffect(() => {
         const timer = setTimeout(() => {
-            router.replace('/login');
+            router.replace('./login');
         }, 2500);
 
         return () => clearTimeout(timer);

@@ -8,7 +8,7 @@ export default function Layout() {
                 screenOptions={{
                     headerShown: false,
                     contentStyle: { backgroundColor: '#111226' },
-                    animation: 'slide_from_right'
+                    animation: 'fade'
                 }}
             />
         </View>
