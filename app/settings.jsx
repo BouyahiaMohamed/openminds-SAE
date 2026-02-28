@@ -1,16 +1,40 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppBackground, Button, BottomNav, SettingCard, SettingDropdown } from '../components/ui/UI';
 import { COLORS } from '../constants/theme';
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('Compte');
     const [editingField, setEditingField] = useState(null);
+    const [userData, setUserData] = useState({ email: '', username: '' });
     const scrollViewRef = useRef(null);
     const sectionLayouts = useRef({});
     const isTabClick = useRef(false);
+
+    useEffect(() => {
+        const loadUserData = async () => {
+            try {
+                const storedUser = await AsyncStorage.getItem('userData');
+                if (storedUser) {
+                    setUserData(JSON.parse(storedUser));
+                }
+            } catch (error) {
+            }
+        };
+        loadUserData();
+    }, []);
+
+    const handleLogout = async () => {
+        try {
+            await AsyncStorage.removeItem('userToken');
+            await AsyncStorage.removeItem('userData');
+            router.replace('/login');
+        } catch (error) {
+        }
+    };
 
     const scrollToSection = (section) => {
         isTabClick.current = true;
@@ -100,12 +124,12 @@ export default function SettingsPage() {
                                 <Text style={{ color: '#4B5563', fontSize: 22, fontWeight: 'bold', marginBottom: 16 }}>Compte</Text>
                                 <SettingCard
                                     title="Nom d'utilisateur"
-                                    subtitle="Username"
+                                    subtitle={userData.username || "Non renseigné"}
                                     onEdit={() => setEditingField("Nom d'utilisateur")}
                                 />
                                 <SettingCard
                                     title="Email"
-                                    subtitle="email@gmail.com"
+                                    subtitle={userData.email || "Non renseigné"}
                                     onEdit={() => setEditingField('Email')}
                                 />
                                 <SettingCard
@@ -115,7 +139,7 @@ export default function SettingsPage() {
                                 <SettingCard
                                     title="Se déconnecter"
                                     isLogout={true}
-                                    onLogout={() => router.replace('/login')}
+                                    onLogout={handleLogout}
                                 />
                             </View>
 

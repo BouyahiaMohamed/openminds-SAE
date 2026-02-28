@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image, SafeAreaView } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Input, PasswordInput, Button, SocialButton } from '../components/ui/UI';
 import { COLORS } from '../constants/theme';
 import { API_URL } from '../config';
@@ -30,12 +31,14 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (response.ok) {
+                await AsyncStorage.setItem('userToken', data.token || 'dummy-token');
+                await AsyncStorage.setItem('userData', JSON.stringify(data.user || { email: email }));
                 router.push('/settings');
             } else {
                 setErrorMessage(data.error || 'Erreur lors de la connexion.');
             }
         } catch (error) {
-            setErrorMessage('Erreur serveur');
+            setErrorMessage('Impossible de joindre le serveur API.');
         }
     };
 
@@ -64,13 +67,11 @@ export default function LoginPage() {
                             label="Email"
                             type="email"
                             placeholder="exemple@gmail.com"
-                            value={email}
                             onChangeText={setEmail}
                         />
                         <PasswordInput
                             label="Mot de passe"
                             placeholder="••••••••••"
-                            value={password}
                             onChangeText={setPassword}
                         />
 

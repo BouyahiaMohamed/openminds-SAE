@@ -7,6 +7,7 @@ import { Input, PasswordInput, Button, SocialButton } from '../components/ui/UI'
 import { COLORS } from '../constants/theme';
 
 export default function RegisterPage() {
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,7 +20,7 @@ export default function RegisterPage() {
         setErrorMessage('');
         setSuccessMessage('');
 
-        if (!email || !password) {
+        if (!username || !email || !password) {
             setErrorMessage('Veuillez remplir tous les champs.');
             return;
         }
@@ -36,7 +37,7 @@ export default function RegisterPage() {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: email, password: password }),
+                body: JSON.stringify({ username, email, password }),
             });
 
             const data = await response.json();
@@ -75,6 +76,13 @@ export default function RegisterPage() {
 
                     <View style={{ flex: 1, backgroundColor: COLORS.inputBg, borderTopLeftRadius: 25, borderTopRightRadius: 25, borderBottomLeftRadius: 25, borderBottomRightRadius: 25, marginHorizontal: 20, marginBottom: 32, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', elevation: 10 }}>
                         <View style={{ gap: 8 }}>
+                            <Input
+                                label="Nom d'utilisateur"
+                                type="text"
+                                placeholder="Ton pseudo"
+                                value={username}
+                                onChangeText={setUsername}
+                            />
                             <Input
                                 label="Email"
                                 type="email"
