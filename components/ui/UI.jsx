@@ -14,45 +14,85 @@ export function AppBackground({ children }) {
     );
 }
 
-export function Input({ label, type = "text", placeholder }) {
+export const Input = ({ label, placeholder, value, onChangeText, ...props }) => {
     return (
-        <View style={{ marginTop: 16, position: 'relative' }}>
-            <Text style={{ position: 'absolute', top: -10, left: 16, backgroundColor: COLORS.inputBg, paddingHorizontal: 8, fontSize: 12, color: COLORS.muted, zIndex: 1, fontWeight: '500' }}>
-                {label}
-            </Text>
-            <TextInput
-                secureTextEntry={type === 'password'}
-                placeholder={placeholder}
-                placeholderTextColor={COLORS.border}
-                style={{ width: '100%', borderWidth: 1, borderColor: COLORS.border, borderRadius: 50, paddingHorizontal: 24, paddingVertical: 16, fontSize: 14, color: COLORS.text }}
-            />
+        <View style={{ marginBottom: 16, position: 'relative', marginTop: 8 }}>
+            <View style={{
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: 25,
+                paddingHorizontal: 20,
+                height: 56,
+                justifyContent: 'center',
+            }}>
+                <TextInput
+                    placeholder={placeholder}
+                    placeholderTextColor={COLORS.muted}
+                    value={value}
+                    onChangeText={onChangeText}
+                    style={{ color: COLORS.text, fontSize: 14, flex: 1 }}
+                    {...props}
+                />
+            </View>
+            <View style={{
+                position: 'absolute',
+                top: -10,
+                left: 20,
+                backgroundColor: COLORS.inputBg,
+                paddingHorizontal: 6,
+            }}>
+                <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '500' }}>{label}</Text>
+            </View>
         </View>
     );
-}
+};
 
-export function PasswordInput({ label, placeholder }) {
-    const [showPassword, setShowPassword] = useState(false);
+export const PasswordInput = ({ label, placeholder, value, onChangeText, ...props }) => {
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
     return (
-        <View style={{ marginTop: 16, position: 'relative' }}>
-            <Text style={{ position: 'absolute', top: -10, left: 16, backgroundColor: COLORS.inputBg, paddingHorizontal: 8, fontSize: 12, color: COLORS.muted, zIndex: 1, fontWeight: '500' }}>
-                {label}
-            </Text>
-            <TextInput
-                secureTextEntry={!showPassword}
-                placeholder={placeholder}
-                placeholderTextColor={COLORS.border}
-                style={{ width: '100%', borderWidth: 1, borderColor: COLORS.border, borderRadius: 50, paddingHorizontal: 24, paddingVertical: 16, paddingRight: 48, fontSize: 14, color: COLORS.text, letterSpacing: showPassword ? 0 : 4 }}
-            />
-            <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={{ position: 'absolute', right: 24, top: 16 }}
-            >
-                <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={COLORS.muted} />
-            </TouchableOpacity>
+        <View style={{ marginBottom: 16, position: 'relative', marginTop: 8 }}>
+            <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: 25,
+                paddingHorizontal: 20,
+                height: 56,
+            }}>
+                <TextInput
+                    placeholder={placeholder}
+                    placeholderTextColor={COLORS.muted}
+                    value={value}
+                    onChangeText={onChangeText}
+                    secureTextEntry={!isPasswordVisible}
+                    style={{ color: COLORS.text, fontSize: 14, flex: 1 }}
+                    {...props}
+                />
+                <TouchableOpacity
+                    onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                    style={{ paddingLeft: 10 }}
+                >
+                    <Ionicons
+                        name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+                        size={20}
+                        color={COLORS.muted}
+                    />
+                </TouchableOpacity>
+            </View>
+            <View style={{
+                position: 'absolute',
+                top: -10,
+                left: 20,
+                backgroundColor: COLORS.inputBg,
+                paddingHorizontal: 6,
+            }}>
+                <Text style={{ color: COLORS.muted, fontSize: 12, fontWeight: '500' }}>{label}</Text>
+            </View>
         </View>
     );
-}
+};
 
 export function Button({ children, onPress }) {
     return (
@@ -73,7 +113,7 @@ export function SocialButton({ iconName, label }) {
             flex: 1,
             borderWidth: 1,
             borderColor: COLORS.border,
-            borderRadius: 22,
+            borderRadius: 25,
             paddingVertical: 12,
             flexDirection: 'row',
             justifyContent: 'center',
@@ -85,6 +125,7 @@ export function SocialButton({ iconName, label }) {
         </TouchableOpacity>
     );
 }
+
 export function BottomNav({ activeTab }) {
     return (
         <View style={{ backgroundColor: COLORS.navBg, flexDirection: 'row', justifyContent: 'center', gap: 60, alignItems: 'center', paddingHorizontal: 32, paddingTop: 16, paddingBottom: 42, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>

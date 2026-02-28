@@ -1,12 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, SafeAreaView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Input, PasswordInput, Button, SocialButton } from '../components/ui/UI';
 import { COLORS } from '../constants/theme';
+import { API_URL } from '../config';
 
 export default function LoginPage() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+
+    const handleLogin = async () => {
+        setErrorMessage('');
+
+        if (!email || !password) {
+            setErrorMessage('Veuillez remplir tous les champs.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                router.push('/settings');
+            } else {
+                setErrorMessage(data.error || 'Erreur lors de la connexion.');
+            }
+        } catch (error) {
+            setErrorMessage('Erreur serveur');
+        }
+    };
+
     return (
         <LinearGradient colors={[COLORS.bgGradientStart, COLORS.bgGradientEnd]} style={{ flex: 1 }}>
             <SafeAreaView style={{ flex: 1 }}>
@@ -19,15 +51,6 @@ export default function LoginPage() {
                         <Ionicons name="chevron-back" size={20} color={COLORS.text} />
                     </TouchableOpacity>
 
-                    {/* --- BOUTON TEMPORAIRE POUR TESTER LA PAGE PARAMÈTRES  A SUPPRIMER APRES --- */}
-                    <TouchableOpacity
-                        onPress={() => router.push('./settings')}
-                        style={{ position: 'absolute', right: 24, top: 48, width: 40, height: 40, backgroundColor: COLORS.overlay, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }}
-                    >
-                        <Ionicons name="settings-outline" size={20} color={COLORS.text} />
-                    </TouchableOpacity>
-                    {/* -------------------------------------------------------- */}
-
                     <Image source={require('../assets/images/logo.png')} style={{ width: 80, height: 80, marginBottom: 16, marginTop: 16 }} resizeMode="contain" />
                     <Text style={{ fontSize: 24, fontWeight: 'bold', color: COLORS.text, marginBottom: 8 }}>Connectez-vous</Text>
                     <Text style={{ color: COLORS.subtext, fontSize: 14, textAlign: 'center', paddingHorizontal: 16 }}>
@@ -37,8 +60,25 @@ export default function LoginPage() {
 
                 <View style={{ flex: 1, backgroundColor: COLORS.inputBg, borderTopLeftRadius: 25, borderTopRightRadius: 25, borderBottomLeftRadius: 25, borderBottomRightRadius: 25, marginHorizontal: 20, marginBottom: 32, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', elevation: 10 }}>
                     <View style={{ gap: 24 }}>
-                        <Input label="Email" type="email" placeholder="exemple@gmail.com" />
-                        <PasswordInput label="Mot de passe" placeholder="••••••••••" />
+                        <Input
+                            label="Email"
+                            type="email"
+                            placeholder="exemple@gmail.com"
+                            value={email}
+                            onChangeText={setEmail}
+                        />
+                        <PasswordInput
+                            label="Mot de passe"
+                            placeholder="••••••••••"
+                            value={password}
+                            onChangeText={setPassword}
+                        />
+
+                        {errorMessage ? (
+                            <Text style={{ color: '#FF4C4C', fontSize: 12, textAlign: 'center', marginTop: -10, fontWeight: '500' }}>
+                                {errorMessage}
+                            </Text>
+                        ) : null}
 
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: -10 }}>
                             <TouchableOpacity>
@@ -46,7 +86,7 @@ export default function LoginPage() {
                             </TouchableOpacity>
                         </View>
 
-                        <Button onPress={() => console.log('Go to Home')}>Se connecter</Button>
+                        <Button onPress={handleLogin}>Se connecter</Button>
                     </View>
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 32 }}>
