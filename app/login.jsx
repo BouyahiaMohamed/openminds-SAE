@@ -3,15 +3,18 @@ import { View, Text, TouchableOpacity, Image, SafeAreaView } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Input, PasswordInput, Button, SocialButton } from '../components/ui/UI';
 import { COLORS } from '../constants/theme';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+
+    // On récupère la fonction login depuis notre Context
+    const { login } = useAuth();
 
     const handleLogin = async () => {
         setErrorMessage('');
@@ -31,8 +34,8 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (response.ok) {
-                await AsyncStorage.setItem('userToken', data.token || 'dummy-token');
-                await AsyncStorage.setItem('userData', JSON.stringify(data.user || { email: email }));
+                // On utilise le context pour sauvegarder l'utilisateur globalement
+                await login(data.user, data.token);
                 router.push('/settings');
             } else {
                 setErrorMessage(data.error || 'Erreur lors de la connexion.');

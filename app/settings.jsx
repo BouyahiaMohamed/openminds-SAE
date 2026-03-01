@@ -1,38 +1,27 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppBackground, Button, BottomNav, SettingCard, SettingDropdown } from '../components/ui/UI';
 import { COLORS } from '../constants/theme';
+import { useAuth } from '../context/AuthContext';
 
 export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState('Compte');
     const [editingField, setEditingField] = useState(null);
-    const [userData, setUserData] = useState({ email: '', username: '' });
     const scrollViewRef = useRef(null);
     const sectionLayouts = useRef({});
     const isTabClick = useRef(false);
 
-    useEffect(() => {
-        const loadUserData = async () => {
-            try {
-                const storedUser = await AsyncStorage.getItem('userData');
-                if (storedUser) {
-                    setUserData(JSON.parse(storedUser));
-                }
-            } catch (error) {
-            }
-        };
-        loadUserData();
-    }, []);
+    // On récupère l'utilisateur et la fonction de déconnexion depuis le Context !
+    const { user, logout } = useAuth();
 
     const handleLogout = async () => {
         try {
-            await AsyncStorage.removeItem('userToken');
-            await AsyncStorage.removeItem('userData');
+            await logout(); // Supprime le token et vide le context
             router.replace('/login');
         } catch (error) {
+            console.error(error);
         }
     };
 
@@ -124,12 +113,12 @@ export default function SettingsPage() {
                                 <Text style={{ color: '#4B5563', fontSize: 22, fontWeight: 'bold', marginBottom: 16 }}>Compte</Text>
                                 <SettingCard
                                     title="Nom d'utilisateur"
-                                    subtitle={userData.username || "Non renseigné"}
+                                    subtitle={user?.username || "Non renseigné"}
                                     onEdit={() => setEditingField("Nom d'utilisateur")}
                                 />
                                 <SettingCard
                                     title="Email"
-                                    subtitle={userData.email || "Non renseigné"}
+                                    subtitle={user?.email || "Non renseigné"}
                                     onEdit={() => setEditingField('Email')}
                                 />
                                 <SettingCard

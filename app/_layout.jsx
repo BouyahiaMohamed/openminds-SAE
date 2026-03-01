@@ -1,16 +1,10 @@
 import { Stack } from 'expo-router';
-import { View } from 'react-native';
+import { AuthProvider } from '../context/AuthContext';
 
 export default function Layout() {
     return (
-        <View style={{ flex: 1, backgroundColor: '#111226' }}>
-            <Stack
-                screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: '#111226' },
-                    animation: 'fade'
-                }}
-            />
-        </View>
+        <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+        </AuthProvider>
     );
 }
