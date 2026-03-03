@@ -14,7 +14,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
 
-    // On récupère la fonction login depuis notre Context
     const { login } = useAuth();
 
     const handleLogin = async () => {
@@ -35,7 +34,6 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (response.ok) {
-                // On utilise le context pour sauvegarder l'utilisateur globalement
                 await login(data.user, data.token);
                 router.push('/settings');
             } else {

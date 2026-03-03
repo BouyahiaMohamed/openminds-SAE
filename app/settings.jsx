@@ -13,12 +13,11 @@ export default function SettingsPage() {
     const sectionLayouts = useRef({});
     const isTabClick = useRef(false);
 
-    // On récupère l'utilisateur et la fonction de déconnexion depuis le Context !
     const { user, logout } = useAuth();
 
     const handleLogout = async () => {
         try {
-            await logout(); // Supprime le token et vide le context
+            await logout();
             router.replace('/login');
         } catch (error) {
             console.error(error);
