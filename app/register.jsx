@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Input, PasswordInput, Button, SocialButton } from '../components/ui/UI';
 import { COLORS } from '../constants/theme';
+import { API_URL } from '../config';
 
 export default function RegisterPage() {
     const [username, setUsername] = useState('');
@@ -13,8 +14,6 @@ export default function RegisterPage() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
-
-    const API_URL = 'http://192.168.1.161:3000';
 
     const handleRegister = async () => {
         setErrorMessage('');

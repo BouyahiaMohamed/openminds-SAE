@@ -8,6 +8,7 @@ import { COLORS } from '../constants/theme';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
+
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
