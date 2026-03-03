@@ -121,7 +121,7 @@ export default function RegisterPage() {
                                 </TouchableOpacity>
                             </View>
 
-                            <Button onPress={handleRegister}>S'inscrire</Button>
+                            <Button onPress={handleRegister}>{"S'inscrire"}</Button>
                         </View>
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 32 }}>
