@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView } from 'react-native';
+import {View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, StyleSheet} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/theme';
@@ -221,3 +221,4 @@ export function SettingDropdown({ title, options, initialValue }) {
         </View>
     );
 }
+

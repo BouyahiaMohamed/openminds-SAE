@@ -13,5 +13,9 @@ export const COLORS = {
   muted: '#9CA3AF',
   border: '#374151',
   inputBg: '#13132C',
-  overlay: 'rgba(11, 12, 30, 0.5)'
+  overlay: 'rgba(11, 12, 30, 0.5)',
+  sectionBg: "#13132c",
+  iconBG: "#36375F",
+  selected: "#76CDE1",
+  notSelected: "#585B75"
 };

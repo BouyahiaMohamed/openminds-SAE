@@ -35,7 +35,7 @@ export default function LoginPage() {
 
             if (response.ok) {
                 await login(data.user, data.token);
-                router.push('/settings');
+                router.push('/home');
             } else {
                 setErrorMessage(data.error || 'Erreur lors de la connexion.');
             }
