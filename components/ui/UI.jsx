@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import {View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView, StyleSheet} from 'react-native';
+import {View, Text, TextInput, TouchableOpacity, SafeAreaView, Platform, StyleSheet} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { COLORS } from '../../constants/theme';
 
 export function AppBackground({ children }) {
@@ -126,28 +127,6 @@ export function SocialButton({ iconName, label }) {
     );
 }
 
-export function BottomNav({ activeTab }) {
-    return (
-        <View style={{ backgroundColor: COLORS.navBg, flexDirection: 'row', justifyContent: 'center', gap: 60, alignItems: 'center', paddingHorizontal: 32, paddingTop: 16, paddingBottom: 42, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
-
-            <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: 72, height: 72, borderRadius: 20, backgroundColor: activeTab === 'Catalogue' ? COLORS.navSelect : 'transparent' }}>
-                <Ionicons name="school-outline" size={26} color={COLORS.text} />
-                <Text style={{ color: COLORS.text, fontSize: 12, marginTop: 4 }}>Catalogue</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: 72, height: 72, borderRadius: 20, backgroundColor: activeTab === 'Menu' ? COLORS.navSelect : 'transparent' }}>
-                <Ionicons name="home" size={26} color={COLORS.text} />
-                <Text style={{ color: COLORS.text, fontSize: 12, marginTop: 4 }}>Menu</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center', width: 72, height: 72, borderRadius: 20, backgroundColor: activeTab === 'Profile' ? COLORS.navSelect : 'transparent' }}>
-                <Ionicons name="person-outline" size={26} color={COLORS.text} />
-                <Text style={{ color: COLORS.text, fontSize: 12, marginTop: 4 }}>Profile</Text>
-            </TouchableOpacity>
-
-        </View>
-    );
-}
 
 export function SettingCard({ title, subtitle, isLogout, onEdit, onLogout }) {
     return (
@@ -222,3 +201,106 @@ export function SettingDropdown({ title, options, initialValue }) {
     );
 }
 
+// ==========================================
+// 2. COMPOSANT : BOTTOM NAVBAR
+// ==========================================
+export const BottomNav = ({ activeTab }) => {
+    const router = useRouter(); // 👉 2. On initialise le router ICI, à l'intérieur du composant
+
+    return (
+        <View style={styles.bottomNav}>
+            <View style={styles.navContainer}>
+                {/* BOUTON CATALOGUE */}
+                <TouchableOpacity
+                    style={[styles.navItem, activeTab === 'Catalogue' && styles.navItemActive]}
+                    onPress={() => router.replace('/catalog')}
+                >
+                    <Ionicons
+                        name="school-outline"
+                        size={24}
+                        color={activeTab === 'Catalogue' ? COLORS.text : COLORS.muted}
+                    />
+                    <Text style={[styles.navText, activeTab === 'Catalogue' && styles.navTextActive]}>
+                        Catalogue
+                    </Text>
+                </TouchableOpacity>
+
+                {/* BOUTON MENU (DASHBOARD) */}
+                <TouchableOpacity
+                    style={[styles.navItem, activeTab === 'Menu' && styles.navItemActive]}
+                    onPress={() => router.replace('/home')}
+                >
+                    <Ionicons
+                        name="home"
+                        size={24}
+                        color={activeTab === 'Menu' ? COLORS.text : COLORS.muted}
+                    />
+                    <Text style={[styles.navText, activeTab === 'Menu' && styles.navTextActive]}>
+                        Menu
+                    </Text>
+                </TouchableOpacity>
+
+                {/* BOUTON PROFILE */}
+                <TouchableOpacity
+                    style={[styles.navItem, activeTab === 'Profile' && styles.navItemActive]}
+                    onPress={() => router.replace('/settings')}
+                >
+                    <Ionicons
+                        name="person-outline"
+                        size={24}
+                        color={activeTab === 'Profile' ? COLORS.text : COLORS.muted}
+                    />
+                    <Text style={[styles.navText, activeTab === 'Profile' && styles.navTextActive]}>
+                        Profile
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+};
+
+// ==========================================
+// STYLES GLOBAUX DE L'UI
+// ==========================================
+const styles = StyleSheet.create({
+    bottomNav: {
+        backgroundColor: COLORS.navBg,
+        position: 'absolute',
+        bottom: 0,
+        width: '100%',
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        zIndex: 10,
+        paddingBottom: Platform.OS === 'ios' ? 45 : 35,
+        paddingTop: 15,
+    },
+    navContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        width: '100%',
+        paddingHorizontal: 10,
+    },
+    navItem: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        minWidth: 90,
+    },
+    navItemActive: {
+        backgroundColor: COLORS.cardBg
+    },
+    navText: {
+        color: COLORS.muted,
+        fontSize: 10,
+        marginTop: 4
+    },
+    navTextActive: {
+        color: COLORS.text,
+        fontSize: 10,
+        marginTop: 4,
+        fontWeight: 'bold'
+    }
+});

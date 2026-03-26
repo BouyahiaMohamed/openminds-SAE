@@ -13,7 +13,6 @@ export default function CatalogPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilters, setActiveFilters] = useState([]);
 
-    // 👉 NOUVEAU : Des filtres vraiment utiles et professionnels
     const availableFilters = ['E-Learning', 'Présentiel', 'Développement Perso.', 'Tech & IT', 'Langues', 'Écologie'];
 
     const [isLoading, setIsLoading] = useState(true);
@@ -21,14 +20,9 @@ export default function CatalogPage() {
 
     const normalizeString = (str) => {
         if (!str) return '';
-        return str
-            .toLowerCase()
-            .trim()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "");
+        return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
 
-    // 👉 NOUVEAU : Variété garantie à 100% avec le paramètre "lock"
     const getDynamicImageUrl = (titre, id) => {
         const cleanTitle = normalizeString(titre);
         let category = "education,study";
@@ -41,25 +35,22 @@ export default function CatalogPage() {
         else if (/agile|cyber|digital|code|tech|scrum|informatique/i.test(cleanTitle)) category = "technology,computer,code";
         else if (/management|projet|equipe|leadership/i.test(cleanTitle)) category = "business,office,meeting";
 
-        // Le paramètre lock=${id} force le service à générer une image unique pour chaque cours, même avec la même catégorie !
         return `https://loremflickr.com/300/300/${category}?lock=${id}`;
     };
 
     useEffect(() => {
-        const fetchCatalog = async () => {
+        const fetchData = async () => {
             try {
                 const token = await AsyncStorage.getItem('userToken');
-                const response = await fetch(`${API_URL}/formations`, {
+
+                // 1. Récupération du catalogue de formations
+                const responseFormations = await fetch(`${API_URL}/formations`, {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-
+                if (responseFormations.ok) {
+                    const data = await responseFormations.json();
                     const formattedData = data.map(form => {
                         let dateAffichee = "";
                         if (form.DateHeure) {
@@ -68,7 +59,6 @@ export default function CatalogPage() {
                             const minutes = d.getMinutes() === 0 ? '' : d.getMinutes();
                             dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} ${d.getHours()}h${minutes}`;
                         }
-
                         return {
                             ...form,
                             isOnline: !!form.isOnline,
@@ -76,24 +66,38 @@ export default function CatalogPage() {
                             DateHeure: dateAffichee
                         };
                     });
-
                     setFormations(formattedData);
                 }
+
+                // 👉 2. NOUVEAU : Récupération des likes de l'utilisateur
+                const responseLikes = await fetch(`${API_URL}/likes`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (responseLikes.ok) {
+                    const likesData = await responseLikes.json();
+                    const likesMap = {};
+                    // On transforme le tableau d'ID reçus en un objet { id: true } pour un accès ultra-rapide
+                    likesData.forEach(like => {
+                        likesMap[like.Id_Formation] = true;
+                    });
+                    setLikedItems(likesMap);
+                }
+
             } catch (error) {
-                console.error("Erreur de récupération du catalogue:", error);
+                console.error("Erreur de récupération des données:", error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchCatalog();
+        fetchData();
     }, []);
 
-    // 👉 NOUVEAU : Moteur de filtres intelligent par thématiques
     useEffect(() => {
         let result = formations;
 
-        // 1. Recherche par texte
         if (searchQuery) {
             const query = normalizeString(searchQuery);
             result = result.filter(f => {
@@ -103,7 +107,6 @@ export default function CatalogPage() {
             });
         }
 
-        // 2. Filtres par tags "intelligents"
         if (activeFilters.length > 0) {
             result = result.filter(item => {
                 return activeFilters.some(filter => {
@@ -132,11 +135,38 @@ export default function CatalogPage() {
         });
     };
 
-    const toggleLike = (id) => {
+    // 👉 NOUVEAU : Fonction pour liker/disliker EN BASE DE DONNÉES
+    const toggleLike = async (id) => {
+        const isCurrentlyLiked = likedItems[id];
+
+        // 1. Mise à jour instantanée de l'UI (Optimistic Update)
         setLikedItems(prev => ({
             ...prev,
-            [id]: !prev[id]
+            [id]: !isCurrentlyLiked
         }));
+
+        try {
+            const token = await AsyncStorage.getItem('userToken');
+
+            // 2. Appel API : Si on like, on POST. Si on dislike, on DELETE.
+            const response = await fetch(`${API_URL}/formations/${id}/like`, {
+                method: isCurrentlyLiked ? 'DELETE' : 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                // Si le serveur renvoie une erreur (ex: perte de co), on annule l'animation du cœur
+                setLikedItems(prev => ({ ...prev, [id]: isCurrentlyLiked }));
+                console.error("Erreur serveur lors de l'enregistrement du favori");
+            }
+        } catch (error) {
+            // Si la requête plante totalement (pas de wifi)
+            setLikedItems(prev => ({ ...prev, [id]: isCurrentlyLiked }));
+            console.error("Erreur réseau lors de l'enregistrement du favori", error);
+        }
     };
 
     return (
@@ -168,7 +198,6 @@ export default function CatalogPage() {
             <View style={styles.shadowContainer}>
                 <View style={styles.mainContainer}>
                     <View style={styles.filtersRow}>
-                        {/* 👉 RETOUR de "options-outline" à la place de "tune-outline" */}
                         <Ionicons name="options-outline" size={24} color={COLORS.muted} style={{ marginRight: 12 }} />
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {availableFilters.map(filter => (
@@ -251,50 +280,23 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20, position: 'relative' },
     headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' },
     settingsBtn: { position: 'absolute', right: 24, top: 60 },
-
     searchContainer: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 20, gap: 12 },
     searchInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 25, paddingHorizontal: 16, height: 44, borderWidth: 1, borderColor: COLORS.border },
     searchInput: { flex: 1, color: COLORS.text, marginLeft: 8, fontSize: 14 },
     dateInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 25, height: 44, borderWidth: 1, borderColor: COLORS.border },
     dateText: { color: COLORS.muted, marginLeft: 8 },
-
-    shadowContainer: {
-        flex: 1,
-        shadowColor: "#000000",
-        shadowOffset: { width: 0, height: -15 },
-        shadowOpacity: 1,
-        shadowRadius: 35,
-        elevation: 40,
-        borderTopLeftRadius: 35,
-        borderTopRightRadius: 35,
-        backgroundColor: COLORS.cardBg,
-    },
-
-    mainContainer: {
-        flex: 1,
-        backgroundColor: COLORS.cardBg,
-        borderTopLeftRadius: 35,
-        borderTopRightRadius: 35,
-        borderTopWidth: 1,
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-        borderColor: COLORS.border,
-        overflow: 'hidden'
-    },
-
+    shadowContainer: { flex: 1, shadowColor: "#000000", shadowOffset: { width: 0, height: -15 }, shadowOpacity: 1, shadowRadius: 35, elevation: 40, borderTopLeftRadius: 35, borderTopRightRadius: 35, backgroundColor: COLORS.cardBg },
+    mainContainer: { flex: 1, backgroundColor: COLORS.cardBg, borderTopLeftRadius: 35, borderTopRightRadius: 35, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
     filtersRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 },
     filterTag: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.muted, borderRadius: 15, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 },
     filterTagActive: { borderColor: COLORS.primary, backgroundColor: COLORS.navBg },
     filterTagText: { color: COLORS.muted, fontSize: 12 },
     filterTagTextActive: { color: COLORS.text, fontWeight: 'bold' },
-
     scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
-
     catalogCard: { flexDirection: 'row', marginBottom: 20, alignItems: 'center' },
     imageContainer: { position: 'relative', width: 90, height: 90, borderRadius: 16, overflow: 'hidden', marginRight: 16, backgroundColor: '#2D2E5C' },
     cardImage: { width: '100%', height: '100%' },
     heartIcon: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 4 },
-
     cardContent: { flex: 1, justifyContent: 'center' },
     cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 6 },
     cardDesc: { color: COLORS.muted, fontSize: 12, lineHeight: 16, marginBottom: 8 },

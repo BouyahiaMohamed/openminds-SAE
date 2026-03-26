@@ -3,8 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS } from '../../constants/theme';
-import { AppBackground } from './UI';
-import { BottomNav } from './BottomNav';
+import { AppBackground, BottomNav } from './UI';
 import { useAuth } from '../../context/AuthContext';
 
 export const PageTemplate = ({
