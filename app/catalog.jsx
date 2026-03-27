@@ -229,7 +229,14 @@ export default function CatalogPage() {
                             <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
                         ) : filteredFormations.length > 0 ? (
                             filteredFormations.map((item) => (
-                                <TouchableOpacity key={item.id} style={styles.catalogCard}>
+                               <TouchableOpacity
+                                   key={item.id}
+                                   style={styles.catalogCard}
+                                   onPress={() => router.push({
+                                       pathname: '/FormationDetail',
+                                       params: { id: item.id, image: item.image }
+                                   })}
+                               >
                                     <View style={styles.imageContainer}>
                                         <Image source={{ uri: item.image }} style={styles.cardImage} />
 
