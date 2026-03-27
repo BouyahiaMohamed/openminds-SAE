@@ -243,7 +243,7 @@ export const BottomNav = ({ activeTab }) => {
                 {/* BOUTON PROFILE */}
                 <TouchableOpacity
                     style={[styles.navItem, activeTab === 'Profile' && styles.navItemActive]}
-                    onPress={() => router.replace('/settings')}
+                    onPress={() => router.replace('/profile')}
                 >
                     <Ionicons
                         name="person-outline"

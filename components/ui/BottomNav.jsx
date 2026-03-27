@@ -18,7 +18,7 @@ export const BottomNav = ({ activeTab }) => {
                     <Text style={[styles.navText, activeTab === 'Menu' && styles.navTextActive]}>Menu</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.navItem, activeTab === 'Profile' && styles.navItemActive]} onPress={() => router.replace('/settings')}>
+                <TouchableOpacity style={[styles.navItem, activeTab === 'Profile' && styles.navItemActive]} onPress={() => router.replace('/profile')}>
                     <Ionicons name="person-outline" size={24} color={activeTab === 'Profile' ? COLORS.text : COLORS.muted} />
                     <Text style={[styles.navText, activeTab === 'Profile' && styles.navTextActive]}>Profile</Text>
                 </TouchableOpacity>
