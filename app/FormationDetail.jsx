@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,20 +9,30 @@ import { COLORS } from '../constants/theme';
 import axios from 'axios';
 
 export default function FormationDetail() {
-    // C'est ICI que la magie opère avec Expo Router (au lieu de route.params)
     const { id, image } = useLocalSearchParams();
     const [details, setDetails] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isLiked, setIsLiked] = useState(false);
 
     useEffect(() => {
-        const fetchDetails = async () => {
-            if (!id) return; // Sécurité si l'ID met du temps à arriver
+        const fetchDetailsAndLikes = async () => {
+            if (!id) return;
             try {
                 const token = await AsyncStorage.getItem('userToken');
-                const response = await axios.get(`${API_URL}/formations/${id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                setDetails(response.data);
+                const headers = { 'Authorization': `Bearer ${token}` };
+
+                // On récupère les détails et l'état du like en parallèle
+                const [resDetails, resLikes] = await Promise.all([
+                    axios.get(`${API_URL}/formations/${id}`, { headers }),
+                    axios.get(`${API_URL}/likes`, { headers })
+                ]);
+
+                setDetails(resDetails.data);
+
+                // Vérifier si cette formation est dans la liste des likes de l'utilisateur
+                const liked = resLikes.data.some(l => l.Id_Formation === parseInt(id));
+                setIsLiked(liked);
+
             } catch (error) {
                 console.error("Erreur de récupération :", error);
             } finally {
@@ -30,8 +40,24 @@ export default function FormationDetail() {
             }
         };
 
-        fetchDetails();
+        fetchDetailsAndLikes();
     }, [id]);
+
+    const handleToggleLike = async () => {
+        try {
+            const token = await AsyncStorage.getItem('userToken');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            if (isLiked) {
+                await axios.delete(`${API_URL}/formations/${id}/like`, { headers });
+            } else {
+                await axios.post(`${API_URL}/formations/${id}/like`, {}, { headers });
+            }
+            setIsLiked(!isLiked);
+        } catch (error) {
+            console.error("Erreur like:", error);
+        }
+    };
 
     const handleReserve = async () => {
         try {
@@ -39,16 +65,21 @@ export default function FormationDetail() {
             await axios.post(`${API_URL}/formations/${id}/enroll`, {}, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            alert("Inscription réussie !");
+
+            Alert.alert("Succès", "Inscription réussie !", [
+                { text: "OK", onPress: () => router.replace('/home') }
+            ]);
         } catch (error) {
-            alert(error.response?.data?.message || "Erreur lors de l'inscription.");
+            Alert.alert("Erreur", error.response?.data?.message || "Erreur lors de l'inscription.");
         }
     };
 
     if (loading) {
         return (
             <AppBackground>
-                <ActivityIndicator size="large" color={COLORS.primary} style={{ flex: 1, justifyContent: 'center' }} />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
             </AppBackground>
         );
     }
@@ -56,18 +87,18 @@ export default function FormationDetail() {
     if (!details) {
         return (
             <AppBackground>
-                <Text style={{ color: COLORS.text, textAlign: 'center', marginTop: 50 }}>Formation introuvable.</Text>
+                <Text style={styles.errorText}>Formation introuvable.</Text>
             </AppBackground>
         );
     }
 
-    // Formatage de la date
+    // Formatage de la date amélioré (ex: 14h05 au lieu de 14h5)
     let dateAffichee = "Date à définir";
     if (details.DateHeure && !details.isOnline) {
         const d = new Date(details.DateHeure);
-        const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-        const minutes = d.getMinutes() === 0 ? '' : d.getMinutes();
-        dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} ${d.getHours()}h${minutes}`;
+        const mois = ["janv.", "févr.", "mars", "avril", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} à ${d.getHours()}h${minutes}`;
     }
 
     return (
@@ -79,50 +110,55 @@ export default function FormationDetail() {
                 <Text style={styles.headerTitle} numberOfLines={1}>{details.Titre}</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                 <View style={styles.topCard}>
                     <Image source={{ uri: image || 'https://via.placeholder.com/150' }} style={styles.image} />
                     <View style={styles.topCardTextContainer}>
-                        <Text style={styles.description}>{details.Description}</Text>
+                        <Text style={styles.description}>{details.Description || "Pas de description."}</Text>
                     </View>
                 </View>
 
                 <View style={styles.infoRow}>
-                    <View style={styles.heartPlaceholder}>
-                        <Ionicons name="heart" size={28} color={COLORS.text} />
+                    <TouchableOpacity onPress={handleToggleLike} style={styles.heartBtn}>
+                        <Ionicons
+                            name={isLiked ? "heart" : "heart-outline"}
+                            size={32}
+                            color={isLiked ? "#EF4444" : COLORS.text}
+                        />
+                    </TouchableOpacity>
+                    <View style={styles.metaInfo}>
+                        <Text style={styles.dateText}>{details.isOnline ? "💻 E-Learning" : `📅 ${dateAffichee}`}</Text>
+                        <Text style={styles.placesText}>
+                            {details.isOnline ? "Accès illimité" : `👥 Places : ${details.nbPlacesRestantes || 0}/${details.nbPlaces || 0}`}
+                        </Text>
                     </View>
-                    <Text style={styles.dateText}>{details.isOnline ? "E-Learning" : dateAffichee}</Text>
-                    <Text style={styles.placesText}>Places: {details.isOnline ? "Illimité" : `${details.nbPlacesRestantes}/${details.nbPlaces}`}</Text>
                 </View>
 
                 <View style={styles.bottomSection}>
                     <View style={styles.mapContainer}>
                         {!details.isOnline ? (
                             <>
-                                <Image source={{ uri: 'https://via.placeholder.com/300x200.png?text=Carte+Google+Maps' }} style={styles.mapImage} />
-                                <Text style={styles.addressText}>{details.Adresse}</Text>
+                                <Image source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=300&h=200&auto=format&fit=crop' }} style={styles.mapImage} />
+                                <Text style={styles.addressText}>📍 {details.Adresse || "Adresse non communiquée"}</Text>
                             </>
                         ) : (
                             <View style={styles.onlinePlaceholder}>
                                 <Ionicons name="laptop-outline" size={40} color={COLORS.muted} />
-                                <Text style={styles.addressText}>Formation 100% en ligne</Text>
+                                <Text style={styles.addressText}>Formation 100% digitale</Text>
                             </View>
                         )}
                     </View>
 
                     <View style={styles.formateursContainer}>
-                        <Text style={styles.formateursTitle}>Formateur.s :</Text>
+                        <Text style={styles.formateursTitle}>Intervenant.s :</Text>
                         <Text style={styles.formateursList}>
-                            {details.Formateurs ? details.Formateurs.split(',').map(f => `\n- ${f.trim()}`) : '\n- Non assigné'}
+                            {details.Formateurs ? details.Formateurs.split(',').map(f => `• ${f.trim()}`).join('\n') : '• À confirmer'}
                         </Text>
-                        <TouchableOpacity style={styles.voirPlusBtn}>
-                            <Text style={styles.voirPlusText}>voir plus de ce formateur</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
                 <TouchableOpacity style={styles.reserveBtn} onPress={handleReserve}>
-                    <Text style={styles.reserveBtnText}>Réserver</Text>
+                    <Text style={styles.reserveBtnText}>Confirmer mon inscription</Text>
                 </TouchableOpacity>
             </ScrollView>
         </AppBackground>
@@ -130,28 +166,29 @@ export default function FormationDetail() {
 }
 
 const styles = StyleSheet.create({
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    errorText: { color: COLORS.text, textAlign: 'center', marginTop: 50, fontSize: 16 },
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20 },
-    backBtn: { position: 'absolute', left: 20, top: 60, zIndex: 1 },
-    headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginHorizontal: 30 },
-    content: { paddingHorizontal: 20, paddingBottom: 40 },
-    topCard: { flexDirection: 'row', marginBottom: 20 },
-    image: { width: 140, height: 140, borderRadius: 15 },
-    topCardTextContainer: { flex: 1, marginLeft: 15 },
-    description: { color: COLORS.muted, fontSize: 13, lineHeight: 18 },
-    infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-    heartPlaceholder: { padding: 5 },
-    dateText: { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
-    placesText: { color: COLORS.muted, fontSize: 14 },
+    backBtn: { zIndex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8 },
+    headerTitle: { flex: 1, fontSize: 18, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginRight: 40 },
+    content: { paddingHorizontal: 20, paddingBottom: 60 },
+    topCard: { flexDirection: 'row', marginBottom: 25, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 },
+    image: { width: 120, height: 120, borderRadius: 15 },
+    topCardTextContainer: { flex: 1, marginLeft: 15, justifyContent: 'center' },
+    description: { color: COLORS.muted, fontSize: 13, lineHeight: 20 },
+    infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 },
+    heartBtn: { marginRight: 20 },
+    metaInfo: { flex: 1 },
+    dateText: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
+    placesText: { color: COLORS.muted, fontSize: 13 },
     bottomSection: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
-    mapContainer: { flex: 1, marginRight: 15 },
-    mapImage: { width: '100%', height: 150, borderRadius: 15 },
-    addressText: { color: COLORS.text, fontSize: 11, textAlign: 'center', marginTop: 8 },
-    onlinePlaceholder: { width: '100%', height: 150, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
-    formateursContainer: { flex: 1 },
-    formateursTitle: { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
-    formateursList: { color: COLORS.muted, fontSize: 13, lineHeight: 18 },
-    voirPlusBtn: { marginTop: 15, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 20, borderWidth: 1, borderColor: COLORS.muted, alignSelf: 'flex-start' },
-    voirPlusText: { color: COLORS.muted, fontSize: 10 },
-    reserveBtn: { backgroundColor: '#4F46E5', borderRadius: 25, paddingVertical: 15, alignItems: 'center', marginTop: 10 },
-    reserveBtnText: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' }
+    mapContainer: { flex: 1.2, marginRight: 15 },
+    mapImage: { width: '100%', height: 120, borderRadius: 15 },
+    addressText: { color: COLORS.muted, fontSize: 11, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+    onlinePlaceholder: { width: '100%', height: 120, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
+    formateursContainer: { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 15 },
+    formateursTitle: { color: COLORS.text, fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
+    formateursList: { color: COLORS.muted, fontSize: 12, lineHeight: 18 },
+    reserveBtn: { backgroundColor: COLORS.primary, borderRadius: 15, paddingVertical: 18, alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+    reserveBtnText: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' }
 });
