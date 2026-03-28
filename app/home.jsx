@@ -15,7 +15,6 @@ export default function HomePage() {
     const [favorites, setFavorites] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // 👉 1. ON RAJOUTE LA FONCTION MAGIQUE ICI
     const normalizeString = (str) => {
         if (!str) return '';
         return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -40,7 +39,7 @@ export default function HomePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-                // 2. Récupérer les formations (Inscrit)
+                // 1. Récupérer les formations (Inscrit)
                 const resFormations = await fetch(`${API_URL}/my-formations`, { method: 'GET', headers });
                 if (resFormations.ok) {
                     const data = await resFormations.json();
@@ -50,11 +49,11 @@ export default function HomePage() {
                         ...form,
                         id: form.id_formation,
                         isOnline: !!form.isOnline,
-                        image: getDynamicImageUrl(form.Titre, form.id_formation) // 👉 On assigne l'image !
+                        image: getDynamicImageUrl(form.Titre, form.id_formation)
                     })));
                 }
 
-                // 3. Récupérer les FAVORIS
+                // 2. Récupérer les FAVORIS
                 const resFavs = await fetch(`${API_URL}/my-favorites`, { method: 'GET', headers });
                 if (resFavs.ok) {
                     const data = await resFavs.json();
@@ -62,7 +61,7 @@ export default function HomePage() {
                         ...form,
                         id: form.id,
                         isOnline: !!form.isOnline,
-                        image: getDynamicImageUrl(form.Titre, form.id) // 👉 On assigne l'image ici aussi !
+                        image: getDynamicImageUrl(form.Titre, form.id)
                     })));
                 }
 
@@ -93,7 +92,8 @@ export default function HomePage() {
                     <Text style={styles.sectionTitle}>Mes coups de cœur</Text>
                     {favorites.length > 0 ? (
                         favorites.map(item => (
-                            <FormationCard key={`fav-${item.id}`} item={item} onPress={() => console.log(item.Titre)} />
+                            // 👉 PLUS DE "onPress" ICI, LA CARTE GÈRE LE CLIC !
+                            <FormationCard key={`fav-${item.id}`} item={item} />
                         ))
                     ) : (
                         <Text style={styles.emptyText}>Aucun favori pour le moment.</Text>
@@ -104,7 +104,8 @@ export default function HomePage() {
                     <Text style={styles.sectionTitle}>Sessions à venir (Présentiel)</Text>
                     {presentielCourses.length > 0 ? (
                         presentielCourses.map(item => (
-                            <FormationCard key={`pres-${item.id}`} item={item} onPress={() => console.log(item.Titre)} />
+                            // 👉 PLUS DE "onPress" ICI NON PLUS !
+                            <FormationCard key={`pres-${item.id}`} item={item} />
                         ))
                     ) : (
                         <Text style={styles.emptyText}>Aucune session physique prévue.</Text>
@@ -115,7 +116,8 @@ export default function HomePage() {
                     <Text style={styles.sectionTitle}>E-Learning (Accès illimité)</Text>
                     {onlineCourses.length > 0 ? (
                         onlineCourses.map(item => (
-                            <FormationCard key={`online-${item.id}`} item={item} onPress={() => console.log(item.Titre)} />
+                            // 👉 ET PLUS DE "onPress" ICI !
+                            <FormationCard key={`online-${item.id}`} item={item} />
                         ))
                     ) : (
                         <Text style={styles.emptyText}>Aucun contenu en ligne pour le moment.</Text>

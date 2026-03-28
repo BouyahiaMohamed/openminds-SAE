@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, StyleSheet, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +12,11 @@ export default function CatalogPage() {
     const [filteredFormations, setFilteredFormations] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilters, setActiveFilters] = useState([]);
+
+    // Nouveaux états pour le tri et le chargement progressif
+    const [dateSort, setDateSort] = useState('default'); // 'default', 'asc' (plus proche), 'desc' (plus loin)
+    const [visibleCount, setVisibleCount] = useState(10); // Affiche 10 par 10
+
     const [isLoading, setIsLoading] = useState(true);
     const [likedItems, setLikedItems] = useState({});
 
@@ -35,7 +40,6 @@ export default function CatalogPage() {
         return `https://loremflickr.com/300/300/${category}?lock=${id}`;
     };
 
-    // 1. Chargement des données au montage
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -51,16 +55,17 @@ export default function CatalogPage() {
                     const data = await resForm.json();
                     setFormations(data.map(form => {
                         let dateAffichee = "Date à définir";
-                        if (form.DateHeure) {
-                            const d = new Date(form.DateHeure);
-                            const mois = ["jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
-                            dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} ${d.getHours()}h${String(d.getMinutes()).padStart(2, '0')}`;
+                        if (form.DateHeureRaw) {
+                            const d = new Date(form.DateHeureRaw);
+                            const mois = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+                            dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} à ${d.getHours()}h${String(d.getMinutes()).padStart(2, '0')}`;
                         }
                         return {
                             ...form,
                             isOnline: !!form.isOnline,
                             image: getDynamicImageUrl(form.Titre, form.id),
-                            dateLabel: dateAffichee
+                            dateLabel: dateAffichee,
+                            timestamp: form.DateHeureRaw ? new Date(form.DateHeureRaw).getTime() : null // Utile pour le tri
                         };
                     }));
                 }
@@ -80,13 +85,17 @@ export default function CatalogPage() {
         fetchData();
     }, []);
 
-    // 2. Gestion des filtres et recherche
+    // 2. Filtrage ET Tri
     useEffect(() => {
-        let result = formations;
+        let result = [...formations];
+
+        // Recherche textuelle
         if (searchQuery) {
             const query = normalizeString(searchQuery);
             result = result.filter(f => normalizeString(f.Titre).includes(query) || (f.Description && normalizeString(f.Description).includes(query)));
         }
+
+        // Filtres par tags
         if (activeFilters.length > 0) {
             result = result.filter(item => activeFilters.some(filter => {
                 if (filter === 'E-Learning') return item.isOnline;
@@ -95,8 +104,25 @@ export default function CatalogPage() {
                 return searchArea.includes(normalizeString(filter));
             }));
         }
+
+        // Tri chronologique
+        if (dateSort === 'asc') {
+            result.sort((a, b) => {
+                if (a.isOnline) return 1; // On met le E-learning en bas pour voir les dates d'abord
+                if (b.isOnline) return -1;
+                return (a.timestamp || Infinity) - (b.timestamp || Infinity);
+            });
+        } else if (dateSort === 'desc') {
+            result.sort((a, b) => {
+                if (a.isOnline) return 1;
+                if (b.isOnline) return -1;
+                return (b.timestamp || 0) - (a.timestamp || 0);
+            });
+        }
+
         setFilteredFormations(result);
-    }, [searchQuery, activeFilters, formations]);
+        setVisibleCount(10); // Si on change un filtre, on remet l'affichage à 10 cartes
+    }, [searchQuery, activeFilters, dateSort, formations]);
 
     const toggleFilter = (filter) => {
         setActiveFilters(prev => prev.includes(filter) ? prev.filter(f => f !== filter) : [...prev, filter]);
@@ -117,6 +143,43 @@ export default function CatalogPage() {
         }
     };
 
+    // Changer l'ordre de tri des dates
+    const handleDateSort = () => {
+        if (dateSort === 'default') setDateSort('asc');
+        else if (dateSort === 'asc') setDateSort('desc');
+        else setDateSort('default');
+    };
+
+    // Rendu d'une carte (utilisé par la FlatList)
+    const renderCard = ({ item }) => (
+        <TouchableOpacity
+            style={styles.catalogCard}
+            onPress={() => router.push({ pathname: '/FormationDetail', params: { id: item.id } })}
+            activeOpacity={0.7}
+        >
+            <View style={styles.imageContainer}>
+                <Image source={{ uri: item.image }} style={styles.cardImage} />
+                <TouchableOpacity style={styles.heartIcon} onPress={() => toggleLike(item.id)}>
+                    <Ionicons
+                        name={likedItems[item.id] ? "heart" : "heart-outline"}
+                        size={32}
+                        color={likedItems[item.id] ? "#EF4444" : "#FFFFFF"}
+                        style={styles.thickHeart}
+                    />
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.cardContent}>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.Titre}</Text>
+                <Text style={styles.cardDesc} numberOfLines={2}>{item.Description || "Apprenez de nouvelles compétences dès aujourd'hui."}</Text>
+                <View style={styles.cardFooter}>
+                    <Text style={styles.cardType}>{item.isOnline ? "💻 E-Learning" : `📍 ${item.dateLabel}`}</Text>
+                    <Text style={styles.voirPlus}>Détails →</Text>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
+
     return (
         <AppBackground>
             <View style={styles.header}>
@@ -130,13 +193,21 @@ export default function CatalogPage() {
                 <View style={styles.searchInputWrapper}>
                     <Ionicons name="search" size={20} color={COLORS.muted} />
                     <TextInput
-                        placeholder="Rechercher une formation..."
+                        placeholder="Rechercher..."
                         placeholderTextColor={COLORS.muted}
                         style={styles.searchInput}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
                 </View>
+
+                {/* BOUTON DE TRI DES DATES */}
+                <TouchableOpacity style={styles.dateInputWrapper} onPress={handleDateSort}>
+                    <Ionicons name={dateSort === 'asc' ? "arrow-up" : dateSort === 'desc' ? "arrow-down" : "calendar-outline"} size={20} color={dateSort !== 'default' ? COLORS.primary : COLORS.muted} />
+                    <Text style={[styles.dateText, dateSort !== 'default' && {color: COLORS.dateText, fontWeight: 'bold'}]}>
+                        {dateSort === 'asc' ? "Croissant" : dateSort === 'desc' ? "Décroissant" : "Dates"}
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             <View style={styles.shadowContainer}>
@@ -155,37 +226,31 @@ export default function CatalogPage() {
                         </ScrollView>
                     </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                        {isLoading ? (
-                            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-                        ) : filteredFormations.length > 0 ? (
-                            filteredFormations.map((item) => (
-                                <TouchableOpacity
-                                    key={item.id}
-                                    style={styles.catalogCard}
-                                    onPress={() => router.push({ pathname: '/FormationDetail', params: { id: item.id } })}
-                                >
-                                    <View style={styles.imageContainer}>
-                                        <Image source={{ uri: item.image }} style={styles.cardImage} />
-                                        <TouchableOpacity style={styles.heartIcon} onPress={() => toggleLike(item.id)}>
-                                            <Ionicons name={likedItems[item.id] ? "heart" : "heart-outline"} size={20} color={likedItems[item.id] ? "#EF4444" : "#FFF"} />
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <View style={styles.cardContent}>
-                                        <Text style={styles.cardTitle} numberOfLines={1}>{item.Titre}</Text>
-                                        <Text style={styles.cardDesc} numberOfLines={2}>{item.Description || "Apprenez de nouvelles compétences dès aujourd'hui."}</Text>
-                                        <View style={styles.cardFooter}>
-                                            <Text style={styles.cardType}>{item.isOnline ? "💻 E-Learning" : `📍 ${item.dateLabel}`}</Text>
-                                            <Text style={styles.voirPlus}>Détails →</Text>
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-                            ))
-                        ) : (
-                            <Text style={styles.emptyText}>Aucun résultat trouvé.</Text>
-                        )}
-                    </ScrollView>
+                    {isLoading ? (
+                        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+                    ) : (
+                        /* 👉 FLATLIST POUR LE CHARGEMENT 10 PAR 10 */
+                        <FlatList
+                            data={filteredFormations.slice(0, visibleCount)}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={renderCard}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.scrollContent}
+                            // Si on scrolle en bas, on rajoute 10 éléments !
+                            onEndReached={() => {
+                                if (visibleCount < filteredFormations.length) {
+                                    setVisibleCount(prev => prev + 10);
+                                }
+                            }}
+                            onEndReachedThreshold={0.5}
+                            ListEmptyComponent={<Text style={styles.emptyText}>Aucun résultat trouvé.</Text>}
+                            ListFooterComponent={
+                                visibleCount < filteredFormations.length ? (
+                                    <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />
+                                ) : null
+                            }
+                        />
+                    )}
                 </View>
             </View>
             <BottomNav activeTab="Catalogue" />
@@ -197,9 +262,11 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
     headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text },
     settingsBtn: { position: 'absolute', right: 24, top: 60 },
-    searchContainer: { paddingHorizontal: 24, paddingBottom: 20 },
-    searchInputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, paddingHorizontal: 16, height: 50 },
-    searchInput: { flex: 1, color: COLORS.text, marginLeft: 10 },
+    searchContainer: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 20, gap: 12 },
+    searchInputWrapper: { flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, paddingHorizontal: 16, height: 44 },
+    searchInput: { flex: 1, color: COLORS.text, marginLeft: 10, fontSize: 13 },
+    dateInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, height: 44 },
+    dateText: { color: COLORS.muted, marginLeft: 6, fontSize: 12 },
     shadowContainer: { flex: 1, backgroundColor: COLORS.cardBg, borderTopLeftRadius: 30, borderTopRightRadius: 30 },
     mainContainer: { flex: 1, paddingHorizontal: 20 },
     filtersRow: { paddingVertical: 20 },
@@ -208,14 +275,17 @@ const styles = StyleSheet.create({
     filterTagText: { color: COLORS.muted, fontSize: 13 },
     filterTagTextActive: { color: COLORS.text, fontWeight: 'bold' },
     scrollContent: { paddingBottom: 100 },
-    catalogCard: { flexDirection: 'row', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 20 },
-    imageContainer: { width: 80, height: 80, borderRadius: 15, overflow: 'hidden', marginRight: 15 },
-    cardImage: { width: '100%', height: '100%' },
-    heartIcon: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, padding: 4 },
+
+    // Design des cartes préservé
+    catalogCard: { flexDirection: 'row', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    imageContainer: { width: 80, height: 80, marginRight: 15, position: 'relative', zIndex: 1 },
+    cardImage: { width: '100%', height: '100%', borderRadius: 15, backgroundColor: '#2D2E5C' },
+    heartIcon: { position: 'absolute', top: -10, right: -10, zIndex: 10 },
+    thickHeart: { textShadowColor: 'rgba(0, 0, 0, 0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2, fontWeight: 'bold' },
     cardContent: { flex: 1, justifyContent: 'space-between' },
-    cardTitle: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-    cardDesc: { color: COLORS.muted, fontSize: 12 },
-    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 },
+    cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
+    cardDesc: { color: COLORS.muted, fontSize: 12, lineHeight: 16 },
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
     cardType: { color: COLORS.primary, fontSize: 11, fontWeight: 'bold' },
     voirPlus: { color: COLORS.text, fontSize: 11, opacity: 0.6 },
     emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 50 }
