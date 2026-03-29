@@ -8,7 +8,13 @@ import { AppBackground, BottomNav } from '../components/ui/UI';
 import { FormationCard } from '../components/ui/FormationCard';
 import { API_URL } from '../config';
 
+// 👉 IMPORT DU CONTEXTE D'AUTHENTIFICATION
+import { useAuth } from '../context/AuthContext';
+
 export default function ProfilePage() {
+    // 👉 RÉCUPÉRATION DE L'UTILISATEUR ET DE LA DÉCONNEXION
+    const { user, logout } = useAuth();
+
     const tabs = ['Badges', 'Progression', 'Mes Formations'];
     const [activeTab, setActiveTab] = useState(tabs[0]);
 
@@ -26,6 +32,14 @@ export default function ProfilePage() {
     const scrollViewRef = useRef(null);
     const sectionLayouts = useRef({});
     const isTabClick = useRef(false);
+
+    // ==========================================
+    // ACTION : DÉCONNEXION
+    // ==========================================
+    const handleLogout = async () => {
+        await logout();
+        router.replace('/login');
+    };
 
     // ==========================================
     // 1. FETCH INITIAL (Badges & Progression)
@@ -72,21 +86,13 @@ export default function ProfilePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const dateAPI = new Date(selectedDate.getTime() - (selectedDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-                console.log("👉 1. Je demande les sessions du :", dateAPI);
-
                 const res = await fetch(`${API_URL}/my-teaching-sessions/by-date?date=${dateAPI}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                console.log("👉 2. Code HTTP reçu :", res.status);
-
                 if (res.ok) {
                     const data = await res.json();
-                    console.log("👉 3. Sessions trouvées :", data.length);
                     setTeachingSessions(data);
-                } else {
-                    const textError = await res.text();
-                    console.log("👉 3 (Erreur). Le serveur dit :", textError);
                 }
             } catch (error) {
                 console.error("👉 Erreur fetch sessions:", error);
@@ -236,7 +242,7 @@ export default function ProfilePage() {
                             </View>
 
                             {/* SECTION 3 : MES FORMATIONS (AVEC CALENDRIER) */}
-                            <View onLayout={(e) => handleLayout('Mes Formations', e)} style={[styles.section, { paddingBottom: 60 }]}>
+                            <View onLayout={(e) => handleLayout('Mes Formations', e)} style={styles.section}>
                                 <Text style={styles.sectionTitle}>Mes sessions à animer</Text>
 
                                 {/* SÉLECTEUR DE DATE */}
@@ -291,6 +297,28 @@ export default function ProfilePage() {
                                 )}
                             </View>
 
+                            {/* 👉 SECTION 4 : ACTIONS COMPTE (Admin & Déconnexion) */}
+                            <View style={styles.actionsSection}>
+                                {/* On vérifie si c'est un administrateur */}
+                                {(user?.isAdmin === 1 || user?.isAdmin === true || user?.isAdmin === '1') && (
+                                    <TouchableOpacity
+                                        style={styles.adminButton}
+                                        onPress={() => router.push('/admin/AdminDashboard')}
+                                    >
+                                        <View style={styles.adminIconWrapper}>
+                                            <Ionicons name="shield-checkmark" size={24} color="#FFF" />
+                                        </View>
+                                        <Text style={styles.adminButtonText}>Espace Administrateur</Text>
+                                        <Ionicons name="chevron-forward" size={20} color="#FFF" />
+                                    </TouchableOpacity>
+                                )}
+
+                                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                                    <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+                                    <Text style={styles.logoutText}>Se déconnecter</Text>
+                                </TouchableOpacity>
+                            </View>
+
                         </ScrollView>
                     )}
                 </View>
@@ -301,7 +329,7 @@ export default function ProfilePage() {
 }
 
 const styles = StyleSheet.create({
-    // --- Header & Tabs (Inchangés) ---
+    // --- Header & Tabs ---
     headerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20, position: 'relative' },
     headerTitle: { fontSize: 22, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' },
     settingsBtn: { position: 'absolute', right: 24, top: 60 },
@@ -313,7 +341,10 @@ const styles = StyleSheet.create({
 
     // --- Layout & Typo ---
     mainContainer: { flex: 1, backgroundColor: COLORS.sectionBg, borderTopLeftRadius: 35, borderTopRightRadius: 35, overflow: 'hidden' },
-    scrollContent: { padding: 24, paddingBottom: 100 },
+
+    // 💥 C'EST ICI QU'ON A AUGMENTÉ L'ESPACE GLOBAL EN BAS 💥
+    scrollContent: { padding: 24, paddingBottom: 160 },
+
     section: { paddingBottom: 32 },
     sectionTitle: { color: COLORS.muted, fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
     emptyText: { color: COLORS.muted, textAlign: 'center', marginVertical: 20, fontStyle: 'italic', fontSize: 14 },
@@ -330,7 +361,7 @@ const styles = StyleSheet.create({
     arrowButton: { padding: 5 },
     dateText: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
 
-    // --- Design Bulles Formations (Maquette) ---
+    // --- Design Bulles Formations ---
     bubbleWrapper: { alignItems: 'center', marginBottom: 10 },
     bubbleContainer: { backgroundColor: '#26284A', borderRadius: 24, paddingVertical: 5, width: '100%' },
     sessionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20 },
@@ -344,5 +375,15 @@ const styles = StyleSheet.create({
 
     // Séparateur
     dateSeparator: { backgroundColor: '#1C1D3B', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 12, marginTop: -12, borderWidth: 2, borderColor: COLORS.sectionBg },
-    dateSeparatorText: { color: COLORS.muted, fontSize: 12, fontWeight: '600' }
+    dateSeparatorText: { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
+
+    // 👉 NOUVEAUX STYLES ACTIONS COMPTE
+    actionsSection: { paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.05)' },
+    adminButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(79, 70, 229, 0.15)', padding: 15, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: COLORS.primary },
+    adminIconWrapper: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    adminButtonText: { flex: 1, color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
+
+    // 💥 ET ICI ON A RAJOUTÉ UN BON GROS MARGIN BOTTOM POUR DÉGAGER LE BOUTON 💥
+    logoutButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 15, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)', justifyContent: 'center', marginBottom: 50 },
+    logoutText: { color: '#EF4444', fontSize: 16, fontWeight: 'bold', marginLeft: 10 }
 });
