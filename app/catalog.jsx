@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, StyleSheet, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,10 +13,14 @@ export default function CatalogPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilters, setActiveFilters] = useState([]);
 
-    const availableFilters = ['E-Learning', 'Présentiel', 'Développement Perso.', 'Tech & IT', 'Langues', 'Écologie'];
+    // Nouveaux états pour le tri et le chargement progressif
+    const [dateSort, setDateSort] = useState('default'); // 'default', 'asc' (plus proche), 'desc' (plus loin)
+    const [visibleCount, setVisibleCount] = useState(10); // Affiche 10 par 10
 
     const [isLoading, setIsLoading] = useState(true);
     const [likedItems, setLikedItems] = useState({});
+
+    const availableFilters = ['E-Learning', 'Présentiel', 'Développement Perso.', 'Tech & IT', 'Langues', 'Écologie'];
 
     const normalizeString = (str) => {
         if (!str) return '';
@@ -26,7 +30,6 @@ export default function CatalogPage() {
     const getDynamicImageUrl = (titre, id) => {
         const cleanTitle = normalizeString(titre);
         let category = "education,study";
-
         if (/jardin|nature|plante|ecolo|vert|terre/i.test(cleanTitle)) category = "nature,garden,plants";
         else if (/carbone|impact|climat|planete/i.test(cleanTitle)) category = "environment,ecology,earth";
         else if (/prejuges|vivre|discrimination|egalite|social/i.test(cleanTitle)) category = "team,people,cooperation";
@@ -34,7 +37,6 @@ export default function CatalogPage() {
         else if (/russe|langue|etranger|vocabulaire|abc/i.test(cleanTitle)) category = "dictionary,language,books";
         else if (/agile|cyber|digital|code|tech|scrum|informatique/i.test(cleanTitle)) category = "technology,computer,code";
         else if (/management|projet|equipe|leadership/i.test(cleanTitle)) category = "business,office,meeting";
-
         return `https://loremflickr.com/300/300/${category}?lock=${id}`;
     };
 
@@ -42,137 +44,146 @@ export default function CatalogPage() {
         const fetchData = async () => {
             try {
                 const token = await AsyncStorage.getItem('userToken');
+                const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-                // 1. Récupération du catalogue de formations
-                const responseFormations = await fetch(`${API_URL}/formations`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                });
+                const [resForm, resLikes] = await Promise.all([
+                    fetch(`${API_URL}/formations`, { headers }),
+                    fetch(`${API_URL}/likes`, { headers })
+                ]);
 
-                if (responseFormations.ok) {
-                    const data = await responseFormations.json();
-                    const formattedData = data.map(form => {
-                        let dateAffichee = "";
-                        if (form.DateHeure) {
-                            const d = new Date(form.DateHeure);
-                            const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-                            const minutes = d.getMinutes() === 0 ? '' : d.getMinutes();
-                            dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} ${d.getHours()}h${minutes}`;
+                if (resForm.ok) {
+                    const data = await resForm.json();
+                    setFormations(data.map(form => {
+                        let dateAffichee = "Date à définir";
+                        if (form.DateHeureRaw) {
+                            const d = new Date(form.DateHeureRaw);
+                            const mois = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+                            dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} à ${d.getHours()}h${String(d.getMinutes()).padStart(2, '0')}`;
                         }
                         return {
                             ...form,
                             isOnline: !!form.isOnline,
                             image: getDynamicImageUrl(form.Titre, form.id),
-                            DateHeure: dateAffichee
+                            dateLabel: dateAffichee,
+                            timestamp: form.DateHeureRaw ? new Date(form.DateHeureRaw).getTime() : null // Utile pour le tri
                         };
-                    });
-                    setFormations(formattedData);
+                    }));
                 }
 
-                // 👉 2. NOUVEAU : Récupération des likes de l'utilisateur
-                const responseLikes = await fetch(`${API_URL}/likes`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (responseLikes.ok) {
-                    const likesData = await responseLikes.json();
+                if (resLikes.ok) {
+                    const likesData = await resLikes.json();
                     const likesMap = {};
-                    // On transforme le tableau d'ID reçus en un objet { id: true } pour un accès ultra-rapide
-                    likesData.forEach(like => {
-                        likesMap[like.Id_Formation] = true;
-                    });
+                    likesData.forEach(like => likesMap[like.Id_Formation] = true);
                     setLikedItems(likesMap);
                 }
-
             } catch (error) {
-                console.error("Erreur de récupération des données:", error);
+                console.error("Erreur:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-
         fetchData();
     }, []);
 
+    // 2. Filtrage ET Tri
     useEffect(() => {
-        let result = formations;
+        let result = [...formations];
 
+        // Recherche textuelle
         if (searchQuery) {
             const query = normalizeString(searchQuery);
-            result = result.filter(f => {
-                const titleMatch = normalizeString(f.Titre).includes(query);
-                const descMatch = f.Description && normalizeString(f.Description).includes(query);
-                return titleMatch || descMatch;
-            });
+            result = result.filter(f => normalizeString(f.Titre).includes(query) || (f.Description && normalizeString(f.Description).includes(query)));
         }
 
+        // Filtres par tags
         if (activeFilters.length > 0) {
-            result = result.filter(item => {
-                return activeFilters.some(filter => {
-                    if (filter === 'E-Learning') return item.isOnline === true;
-                    if (filter === 'Présentiel') return item.isOnline === false;
+            result = result.filter(item => activeFilters.some(filter => {
+                if (filter === 'E-Learning') return item.isOnline;
+                if (filter === 'Présentiel') return !item.isOnline;
+                const searchArea = normalizeString(item.Titre + " " + (item.Description || ""));
+                return searchArea.includes(normalizeString(filter));
+            }));
+        }
 
-                    const textToSearch = normalizeString(item.Titre) + " " + (item.Description ? normalizeString(item.Description) : "");
-
-                    if (filter === 'Tech & IT') return /agile|cyber|digital|code|tech|scrum|informatique/i.test(textToSearch);
-                    if (filter === 'Langues') return /russe|langue|anglais|espagnol|vocabulaire/i.test(textToSearch);
-                    if (filter === 'Écologie') return /nature|jardin|plante|ecolo|vert|terre|carbone|climat/i.test(textToSearch);
-                    if (filter === 'Développement Perso.') return /stress|prejuges|vivre|communication|bienetre|management|equipe/i.test(textToSearch);
-
-                    return textToSearch.includes(normalizeString(filter));
-                });
+        // Tri chronologique
+        if (dateSort === 'asc') {
+            result.sort((a, b) => {
+                if (a.isOnline) return 1; // On met le E-learning en bas pour voir les dates d'abord
+                if (b.isOnline) return -1;
+                return (a.timestamp || Infinity) - (b.timestamp || Infinity);
+            });
+        } else if (dateSort === 'desc') {
+            result.sort((a, b) => {
+                if (a.isOnline) return 1;
+                if (b.isOnline) return -1;
+                return (b.timestamp || 0) - (a.timestamp || 0);
             });
         }
 
         setFilteredFormations(result);
-    }, [searchQuery, activeFilters, formations]);
+        setVisibleCount(10); // Si on change un filtre, on remet l'affichage à 10 cartes
+    }, [searchQuery, activeFilters, dateSort, formations]);
 
     const toggleFilter = (filter) => {
-        setActiveFilters(prev => {
-            if (prev.includes(filter)) return prev.filter(f => f !== filter);
-            return [...prev, filter];
-        });
+        setActiveFilters(prev => prev.includes(filter) ? prev.filter(f => f !== filter) : [...prev, filter]);
     };
 
-    // 👉 NOUVEAU : Fonction pour liker/disliker EN BASE DE DONNÉES
     const toggleLike = async (id) => {
         const isCurrentlyLiked = likedItems[id];
-
-        // 1. Mise à jour instantanée de l'UI (Optimistic Update)
-        setLikedItems(prev => ({
-            ...prev,
-            [id]: !isCurrentlyLiked
-        }));
-
+        setLikedItems(prev => ({ ...prev, [id]: !isCurrentlyLiked }));
         try {
             const token = await AsyncStorage.getItem('userToken');
-
-            // 2. Appel API : Si on like, on POST. Si on dislike, on DELETE.
             const response = await fetch(`${API_URL}/formations/${id}/like`, {
                 method: isCurrentlyLiked ? 'DELETE' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
-
-            if (!response.ok) {
-                // Si le serveur renvoie une erreur (ex: perte de co), on annule l'animation du cœur
-                setLikedItems(prev => ({ ...prev, [id]: isCurrentlyLiked }));
-                console.error("Erreur serveur lors de l'enregistrement du favori");
-            }
+            if (!response.ok) throw new Error();
         } catch (error) {
-            // Si la requête plante totalement (pas de wifi)
             setLikedItems(prev => ({ ...prev, [id]: isCurrentlyLiked }));
-            console.error("Erreur réseau lors de l'enregistrement du favori", error);
         }
     };
+
+    // Changer l'ordre de tri des dates
+    const handleDateSort = () => {
+        if (dateSort === 'default') setDateSort('asc');
+        else if (dateSort === 'asc') setDateSort('desc');
+        else setDateSort('default');
+    };
+
+    // Rendu d'une carte (utilisé par la FlatList)
+    const renderCard = ({ item }) => (
+        <TouchableOpacity
+            style={styles.catalogCard}
+            onPress={() => router.push({ pathname: '/FormationDetail', params: { id: item.id } })}
+            activeOpacity={0.7}
+        >
+            <View style={styles.imageContainer}>
+                <Image source={{ uri: item.image }} style={styles.cardImage} />
+                <TouchableOpacity style={styles.heartIcon} onPress={() => toggleLike(item.id)}>
+                    <Ionicons
+                        name={likedItems[item.id] ? "heart" : "heart-outline"}
+                        size={32}
+                        color={likedItems[item.id] ? "#EF4444" : "#FFFFFF"}
+                        style={styles.thickHeart}
+                    />
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.cardContent}>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.Titre}</Text>
+                <Text style={styles.cardDesc} numberOfLines={2}>{item.Description || "Apprenez de nouvelles compétences dès aujourd'hui."}</Text>
+                <View style={styles.cardFooter}>
+                    <Text style={styles.cardType}>{item.isOnline ? "💻 E-Learning" : `📍 ${item.dateLabel}`}</Text>
+                    <Text style={styles.voirPlus}>Détails →</Text>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
 
     return (
         <AppBackground>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Formations</Text>
+                <Text style={styles.headerTitle}>Catalogue</Text>
                 <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
                     <Ionicons name="settings-outline" size={24} color={COLORS.text} />
                 </TouchableOpacity>
@@ -182,134 +193,100 @@ export default function CatalogPage() {
                 <View style={styles.searchInputWrapper}>
                     <Ionicons name="search" size={20} color={COLORS.muted} />
                     <TextInput
-                        placeholder="Rechercher"
+                        placeholder="Rechercher..."
                         placeholderTextColor={COLORS.muted}
                         style={styles.searchInput}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
                 </View>
-                <TouchableOpacity style={styles.dateInputWrapper}>
-                    <Ionicons name="calendar-outline" size={20} color={COLORS.muted} />
-                    <Text style={styles.dateText}>Date</Text>
+
+                {/* BOUTON DE TRI DES DATES */}
+                <TouchableOpacity style={styles.dateInputWrapper} onPress={handleDateSort}>
+                    <Ionicons name={dateSort === 'asc' ? "arrow-up" : dateSort === 'desc' ? "arrow-down" : "calendar-outline"} size={20} color={dateSort !== 'default' ? COLORS.primary : COLORS.muted} />
+                    <Text style={[styles.dateText, dateSort !== 'default' && {color: COLORS.dateText, fontWeight: 'bold'}]}>
+                        {dateSort === 'asc' ? "Croissant" : dateSort === 'desc' ? "Décroissant" : "Dates"}
+                    </Text>
                 </TouchableOpacity>
             </View>
 
             <View style={styles.shadowContainer}>
                 <View style={styles.mainContainer}>
                     <View style={styles.filtersRow}>
-                        <Ionicons name="options-outline" size={24} color={COLORS.muted} style={{ marginRight: 12 }} />
                         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                             {availableFilters.map(filter => (
                                 <TouchableOpacity
                                     key={filter}
                                     onPress={() => toggleFilter(filter)}
-                                    style={[
-                                        styles.filterTag,
-                                        activeFilters.includes(filter) && styles.filterTagActive
-                                    ]}
+                                    style={[styles.filterTag, activeFilters.includes(filter) && styles.filterTagActive]}
                                 >
-                                    <Text style={[
-                                        styles.filterTagText,
-                                        activeFilters.includes(filter) && styles.filterTagTextActive
-                                    ]}>{filter}</Text>
-                                    <Ionicons
-                                        name={activeFilters.includes(filter) ? "close" : "add"}
-                                        size={14}
-                                        color={activeFilters.includes(filter) ? COLORS.text : COLORS.muted}
-                                        style={{ marginLeft: 4 }}
-                                    />
+                                    <Text style={[styles.filterTagText, activeFilters.includes(filter) && styles.filterTagTextActive]}>{filter}</Text>
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>
                     </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                        {isLoading ? (
-                            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
-                        ) : filteredFormations.length > 0 ? (
-                            filteredFormations.map((item) => (
-                               <TouchableOpacity
-                                   key={item.id}
-                                   style={styles.catalogCard}
-                                   onPress={() => router.push({
-                                       pathname: '/FormationDetail',
-                                       params: { id: item.id, image: item.image }
-                                   })}
-                               >
-                                    <View style={styles.imageContainer}>
-                                        <Image source={{ uri: item.image }} style={styles.cardImage} />
-
-                                        <TouchableOpacity
-                                            style={styles.heartIcon}
-                                            onPress={() => toggleLike(item.id)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Ionicons
-                                                name={likedItems[item.id] ? "heart" : "heart-outline"}
-                                                size={22}
-                                                color={likedItems[item.id] ? "#EF4444" : COLORS.text}
-                                            />
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <View style={styles.cardContent}>
-                                        <Text style={styles.cardTitle} numberOfLines={1}>{item.Titre}</Text>
-                                        <Text style={styles.cardDesc} numberOfLines={2}>
-                                            {item.Description || "Aucune description disponible."}
-                                        </Text>
-
-                                        <View style={styles.cardFooter}>
-                                            <Text style={styles.cardType}>
-                                                {item.isOnline ? "E-Learning" : (item.DateHeure || "Date à définir")}
-                                            </Text>
-                                            <View style={styles.voirPlusContainer}>
-                                                {item.isOnline ? <Ionicons name="download-outline" size={20} color={COLORS.text} /> : null}
-                                                <Text style={styles.voirPlus}>Voir plus...</Text>
-                                            </View>
-                                        </View>
-                                    </View>
-                                </TouchableOpacity>
-                            ))
-                        ) : (
-                            <Text style={styles.emptyText}>Aucune formation ne correspond à vos critères.</Text>
-                        )}
-                    </ScrollView>
+                    {isLoading ? (
+                        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+                    ) : (
+                        /* 👉 FLATLIST POUR LE CHARGEMENT 10 PAR 10 */
+                        <FlatList
+                            data={filteredFormations.slice(0, visibleCount)}
+                            keyExtractor={(item) => item.id.toString()}
+                            renderItem={renderCard}
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.scrollContent}
+                            // Si on scrolle en bas, on rajoute 10 éléments !
+                            onEndReached={() => {
+                                if (visibleCount < filteredFormations.length) {
+                                    setVisibleCount(prev => prev + 10);
+                                }
+                            }}
+                            onEndReachedThreshold={0.5}
+                            ListEmptyComponent={<Text style={styles.emptyText}>Aucun résultat trouvé.</Text>}
+                            ListFooterComponent={
+                                visibleCount < filteredFormations.length ? (
+                                    <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />
+                                ) : null
+                            }
+                        />
+                    )}
                 </View>
             </View>
-
             <BottomNav activeTab="Catalogue" />
         </AppBackground>
     );
 }
 
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20, position: 'relative' },
-    headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' },
+    header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
+    headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text },
     settingsBtn: { position: 'absolute', right: 24, top: 60 },
     searchContainer: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 20, gap: 12 },
-    searchInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 25, paddingHorizontal: 16, height: 44, borderWidth: 1, borderColor: COLORS.border },
-    searchInput: { flex: 1, color: COLORS.text, marginLeft: 8, fontSize: 14 },
-    dateInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 25, height: 44, borderWidth: 1, borderColor: COLORS.border },
-    dateText: { color: COLORS.muted, marginLeft: 8 },
-    shadowContainer: { flex: 1, shadowColor: "#000000", shadowOffset: { width: 0, height: -15 }, shadowOpacity: 1, shadowRadius: 35, elevation: 40, borderTopLeftRadius: 35, borderTopRightRadius: 35, backgroundColor: COLORS.cardBg },
-    mainContainer: { flex: 1, backgroundColor: COLORS.cardBg, borderTopLeftRadius: 35, borderTopRightRadius: 35, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: COLORS.border, overflow: 'hidden' },
-    filtersRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 },
-    filterTag: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.muted, borderRadius: 15, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 },
-    filterTagActive: { borderColor: COLORS.primary, backgroundColor: COLORS.navBg },
-    filterTagText: { color: COLORS.muted, fontSize: 12 },
+    searchInputWrapper: { flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, paddingHorizontal: 16, height: 44 },
+    searchInput: { flex: 1, color: COLORS.text, marginLeft: 10, fontSize: 13 },
+    dateInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, height: 44 },
+    dateText: { color: COLORS.muted, marginLeft: 6, fontSize: 12 },
+    shadowContainer: { flex: 1, backgroundColor: COLORS.cardBg, borderTopLeftRadius: 30, borderTopRightRadius: 30 },
+    mainContainer: { flex: 1, paddingHorizontal: 20 },
+    filtersRow: { paddingVertical: 20 },
+    filterTag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, marginRight: 8 },
+    filterTagActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+    filterTagText: { color: COLORS.muted, fontSize: 13 },
     filterTagTextActive: { color: COLORS.text, fontWeight: 'bold' },
-    scrollContent: { paddingHorizontal: 24, paddingBottom: 100 },
-    catalogCard: { flexDirection: 'row', marginBottom: 20, alignItems: 'center' },
-    imageContainer: { position: 'relative', width: 90, height: 90, borderRadius: 16, overflow: 'hidden', marginRight: 16, backgroundColor: '#2D2E5C' },
-    cardImage: { width: '100%', height: '100%' },
-    heartIcon: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: 4 },
-    cardContent: { flex: 1, justifyContent: 'center' },
-    cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 6 },
-    cardDesc: { color: COLORS.muted, fontSize: 12, lineHeight: 16, marginBottom: 8 },
-    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    cardType: { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
-    voirPlusContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    voirPlus: { color: COLORS.text, fontSize: 12 },
-    emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 40 }
+    scrollContent: { paddingBottom: 100 },
+
+    // Design des cartes préservé
+    catalogCard: { flexDirection: 'row', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    imageContainer: { width: 80, height: 80, marginRight: 15, position: 'relative', zIndex: 1 },
+    cardImage: { width: '100%', height: '100%', borderRadius: 15, backgroundColor: '#2D2E5C' },
+    heartIcon: { position: 'absolute', top: -10, right: -10, zIndex: 10 },
+    thickHeart: { textShadowColor: 'rgba(0, 0, 0, 0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2, fontWeight: 'bold' },
+    cardContent: { flex: 1, justifyContent: 'space-between' },
+    cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
+    cardDesc: { color: COLORS.muted, fontSize: 12, lineHeight: 16 },
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+    cardType: { color: COLORS.primary, fontSize: 11, fontWeight: 'bold' },
+    voirPlus: { color: COLORS.text, fontSize: 11, opacity: 0.6 },
+    emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 50 }
 });

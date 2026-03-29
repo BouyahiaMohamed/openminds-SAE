@@ -1,56 +1,116 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/theme';
+import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../constants/theme'; // Adapte le chemin des imports si besoin
+import { router } from 'expo-router';
 
 export const FormationCard = ({ item, onPress }) => {
+
+    // Gérer le clic par défaut si aucun n'est fourni
+    const handlePress = () => {
+        if (onPress) {
+            onPress();
+        } else {
+            router.push({
+                pathname: '/FormationDetail',
+                params: { id: item.id || item.id_formation, image: item.image }
+            });
+        }
+    };
+
+    // Formatage de la date en direct pour la Home
+    let dateAffichee = item.dateLabel || "Date à définir";
+    if (item.DateHeure && !item.dateLabel) {
+        const d = new Date(item.DateHeure);
+        if (!isNaN(d)) {
+            const mois = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+            dateAffichee = `${d.getDate()} ${mois[d.getMonth()]} à ${d.getHours()}h${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+    }
+
     return (
-        <TouchableOpacity style={styles.card} onPress={onPress}>
-            <View style={styles.iconContainer}>
-                {item.type === 'MaterialCommunityIcons' ? (
-                    <MaterialCommunityIcons name={item.icon} size={28} color={COLORS.subtext} />
+        <TouchableOpacity style={styles.catalogCard} onPress={handlePress} activeOpacity={0.7}>
+            <View style={styles.imageContainer}>
+                {/* On affiche l'image si elle existe, sinon un fond par défaut */}
+                {item.image ? (
+                    <Image source={{ uri: item.image }} style={styles.cardImage} />
                 ) : (
-                    <Ionicons name={item.icon} size={28} color={COLORS.subtext} />
+                    <View style={styles.placeholderImage}>
+                        <Ionicons name="book-outline" size={30} color="#FFF" />
+                    </View>
                 )}
             </View>
 
             <View style={styles.cardContent}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.cardTitle}>{item.Titre}</Text>
-                    {item.Statut === 'Téléchargeable' && <Ionicons name="download-outline" size={20} color={COLORS.muted} />}
-                </View>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.Titre}</Text>
+                <Text style={styles.cardDesc} numberOfLines={2}>
+                    {item.Description || "Retrouvez les détails de votre apprentissage ici."}
+                </Text>
 
-                {item.DateHeure && <Text style={styles.cardTime}>{item.DateHeure}</Text>}
-
-                {item.Progression ? (
-                    <View style={styles.progressContainer}>
-                        <Text style={styles.progressText}>{Math.round(item.Progression * 100)}%</Text>
-                        <View style={styles.progressBarBg}>
-                            <View style={[styles.progressBarFill, { width: `${item.Progression * 100}%` }]} />
-                        </View>
-                    </View>
-                ) : (
-                    <Text style={[styles.cardStatus, item.Statut === 'En cours' && { color: COLORS.danger }]}>
-                        {item.Statut === 'À venir' ? '' : item.Statut}
+                <View style={styles.cardFooter}>
+                    <Text style={styles.cardType}>
+                        {item.isOnline ? "💻 E-Learning" : `📍 ${dateAffichee}`}
                     </Text>
-                )}
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.muted} />
+                </View>
             </View>
-            <Text style={styles.voirPlus}>Voir plus...</Text>
         </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
-    card: { backgroundColor: COLORS.cardBg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 30, padding: 16, flexDirection: 'row', marginBottom: 16, position: 'relative' },
-    iconContainer: { width: 50, height: 50, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', marginRight: 16, backgroundColor: COLORS.iconBG },
-    cardContent: { flex: 1, justifyContent: 'center' },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    cardTitle: { color: COLORS.text, fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
-    cardTime: { color: COLORS.subtext, fontSize: 12, marginBottom: 4 },
-    cardStatus: { color: COLORS.muted, fontSize: 12, fontWeight: '500' },
-    progressContainer: { marginTop: 4 },
-    progressText: { color: COLORS.primary, fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
-    progressBarBg: { height: 4, backgroundColor: COLORS.border, borderRadius: 2, width: '70%' },
-    progressBarFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 2 },
-    voirPlus: { position: 'absolute', bottom: 16, right: 16, color: COLORS.muted, fontSize: 11 },
+    catalogCard: {
+        flexDirection: 'row',
+        marginBottom: 20,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        padding: 10,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)'
+    },
+    imageContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 15,
+        overflow: 'hidden',
+        marginRight: 15,
+        backgroundColor: '#2D2E5C' // Couleur de fond si l'image charge lentement
+    },
+    cardImage: {
+        width: '100%',
+        height: '100%'
+    },
+    placeholderImage: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.1)'
+    },
+    cardContent: {
+        flex: 1,
+        justifyContent: 'space-between'
+    },
+    cardTitle: {
+        color: COLORS.text || '#FFF',
+        fontSize: 16,
+        fontWeight: 'bold'
+    },
+    cardDesc: {
+        color: COLORS.muted || '#A1A1AA',
+        fontSize: 12,
+        lineHeight: 16,
+        marginTop: 4
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8
+    },
+    cardType: {
+        color: COLORS.primary || '#4F46E5',
+        fontSize: 11,
+        fontWeight: 'bold'
+    }
 });
