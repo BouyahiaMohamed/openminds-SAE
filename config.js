@@ -1,1 +1,1 @@
-    export const API_URL = 'http://premierouvrir.freeboxos.fr:3000';
+    export const API_URL = 'http://82.66.181.183:3000';
