@@ -8,7 +8,6 @@ import { AppBackground, BottomNav } from '../components/ui/UI';
 import { FormationCard } from '../components/ui/FormationCard';
 import { API_URL } from '../config';
 
-
 export default function ProfilePage() {
     const tabs = ['Badges', 'Progression', 'Mes Formations'];
     const [activeTab, setActiveTab] = useState(tabs[0]);
