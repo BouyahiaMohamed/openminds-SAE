@@ -236,8 +236,12 @@ export default function ProfilePage() {
                                             <View key={badge.id || index} style={styles.badgeWrapper}>
                                                 <View style={styles.badgeIconBg}>
                                                     {badge.URLImage ? (
-                                                        <Image source={{ uri: badge.URLImage.startsWith('http') ? badge.URLImage : `${API_URL}/${badge.URLImage}` }} style={styles.badgeImage} resizeMode="contain" />
-                                                    ) : (
+// Remarque bien le {{ uri: ... }}
+                                                        <Image
+                                                            source={{ uri: `${API_URL}/uploads${badge.URLImage}` }}
+                                                            style={styles.badgeImage}
+                                                            resizeMode="contain"
+                                                        />                                                    ) : (
                                                         <Ionicons name="medal" size={32} color="#FFD700" />
                                                     )}
                                                 </View>
