@@ -58,7 +58,7 @@ export default function AdminDashboard() {
         };
 
         fetchStats();
-    }, [activeFilter]); // Se relance à chaque clic sur un filtre !
+    }, [activeFilter]);
 
     const chartConfig = {
         backgroundGradientFrom: "rgba(255,255,255,0.02)",
@@ -71,6 +71,7 @@ export default function AdminDashboard() {
     };
 
     const menuLinks = [
+        { title: "Modération Formations", icon: "shield-checkmark", route: "/admin/ModerationFormations" },
         { title: "Calendrier Global", icon: "calendar", route: "/admin/calendar" },
         { title: "Gestion Catalogue", icon: "library", route: "/admin/catalogue" },
         { title: "Validation Certifications", icon: "school", route: "/admin/certifications" },

@@ -13,9 +13,8 @@ export default function CatalogPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilters, setActiveFilters] = useState([]);
 
-    // Nouveaux états pour le tri et le chargement progressif
-    const [dateSort, setDateSort] = useState('default'); // 'default', 'asc' (plus proche), 'desc' (plus loin)
-    const [visibleCount, setVisibleCount] = useState(10); // Affiche 10 par 10
+    const [dateSort, setDateSort] = useState('default');
+    const [visibleCount, setVisibleCount] = useState(10);
 
     const [isLoading, setIsLoading] = useState(true);
     const [likedItems, setLikedItems] = useState({});
@@ -65,7 +64,7 @@ export default function CatalogPage() {
                             isOnline: !!form.isOnline,
                             image: getDynamicImageUrl(form.Titre, form.id),
                             dateLabel: dateAffichee,
-                            timestamp: form.DateHeureRaw ? new Date(form.DateHeureRaw).getTime() : null // Utile pour le tri
+                            timestamp: form.DateHeureRaw ? new Date(form.DateHeureRaw).getTime() : null
                         };
                     }));
                 }
@@ -85,17 +84,14 @@ export default function CatalogPage() {
         fetchData();
     }, []);
 
-    // 2. Filtrage ET Tri
     useEffect(() => {
         let result = [...formations];
 
-        // Recherche textuelle
         if (searchQuery) {
             const query = normalizeString(searchQuery);
             result = result.filter(f => normalizeString(f.Titre).includes(query) || (f.Description && normalizeString(f.Description).includes(query)));
         }
 
-        // Filtres par tags
         if (activeFilters.length > 0) {
             result = result.filter(item => activeFilters.some(filter => {
                 if (filter === 'E-Learning') return item.isOnline;
@@ -105,10 +101,9 @@ export default function CatalogPage() {
             }));
         }
 
-        // Tri chronologique
         if (dateSort === 'asc') {
             result.sort((a, b) => {
-                if (a.isOnline) return 1; // On met le E-learning en bas pour voir les dates d'abord
+                if (a.isOnline) return 1;
                 if (b.isOnline) return -1;
                 return (a.timestamp || Infinity) - (b.timestamp || Infinity);
             });
@@ -121,7 +116,7 @@ export default function CatalogPage() {
         }
 
         setFilteredFormations(result);
-        setVisibleCount(10); // Si on change un filtre, on remet l'affichage à 10 cartes
+        setVisibleCount(10);
     }, [searchQuery, activeFilters, dateSort, formations]);
 
     const toggleFilter = (filter) => {
@@ -143,14 +138,12 @@ export default function CatalogPage() {
         }
     };
 
-    // Changer l'ordre de tri des dates
     const handleDateSort = () => {
         if (dateSort === 'default') setDateSort('asc');
         else if (dateSort === 'asc') setDateSort('desc');
         else setDateSort('default');
     };
 
-    // Rendu d'une carte (utilisé par la FlatList)
     const renderCard = ({ item }) => (
         <TouchableOpacity
             style={styles.catalogCard}
@@ -183,7 +176,13 @@ export default function CatalogPage() {
     return (
         <AppBackground>
             <View style={styles.header}>
+                {/* NOUVEAU BOUTON AJOUTER ICI (À GAUCHE) */}
+                <TouchableOpacity onPress={() => router.push('/AddFormation')} style={styles.addBtn}>
+                    <Ionicons name="add" size={28} color={COLORS.primary || '#38BDF8'} />
+                </TouchableOpacity>
+
                 <Text style={styles.headerTitle}>Catalogue</Text>
+
                 <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
                     <Ionicons name="settings-outline" size={24} color={COLORS.text} />
                 </TouchableOpacity>
@@ -201,7 +200,6 @@ export default function CatalogPage() {
                     />
                 </View>
 
-                {/* BOUTON DE TRI DES DATES */}
                 <TouchableOpacity style={styles.dateInputWrapper} onPress={handleDateSort}>
                     <Ionicons name={dateSort === 'asc' ? "arrow-up" : dateSort === 'desc' ? "arrow-down" : "calendar-outline"} size={20} color={dateSort !== 'default' ? COLORS.primary : COLORS.muted} />
                     <Text style={[styles.dateText, dateSort !== 'default' && {color: COLORS.dateText, fontWeight: 'bold'}]}>
@@ -229,14 +227,12 @@ export default function CatalogPage() {
                     {isLoading ? (
                         <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
                     ) : (
-                        /* 👉 FLATLIST POUR LE CHARGEMENT 10 PAR 10 */
                         <FlatList
                             data={filteredFormations.slice(0, visibleCount)}
                             keyExtractor={(item) => item.id.toString()}
                             renderItem={renderCard}
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={styles.scrollContent}
-                            // Si on scrolle en bas, on rajoute 10 éléments !
                             onEndReached={() => {
                                 if (visibleCount < filteredFormations.length) {
                                     setVisibleCount(prev => prev + 10);
@@ -259,9 +255,13 @@ export default function CatalogPage() {
 }
 
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
-    headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text },
-    settingsBtn: { position: 'absolute', right: 24, top: 60 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
+    headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text, flex: 1, textAlign: 'center' },
+
+    // Nouveaux styles pour les boutons Header (Flexbox comme sur la page profil)
+    addBtn: { backgroundColor: 'rgba(56, 189, 248, 0.15)', padding: 6, borderRadius: 12, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+    settingsBtn: { padding: 6, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+
     searchContainer: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 20, gap: 12 },
     searchInputWrapper: { flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, paddingHorizontal: 16, height: 44 },
     searchInput: { flex: 1, color: COLORS.text, marginLeft: 10, fontSize: 13 },
@@ -276,7 +276,6 @@ const styles = StyleSheet.create({
     filterTagTextActive: { color: COLORS.text, fontWeight: 'bold' },
     scrollContent: { paddingBottom: 100 },
 
-    // Design des cartes préservé
     catalogCard: { flexDirection: 'row', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     imageContainer: { width: 80, height: 80, marginRight: 15, position: 'relative', zIndex: 1 },
     cardImage: { width: '100%', height: '100%', borderRadius: 15, backgroundColor: '#2D2E5C' },
