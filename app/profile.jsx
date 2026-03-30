@@ -213,9 +213,14 @@ export default function ProfilePage() {
     return (
         <AppBackground>
             <View style={{ flex: 1, paddingTop: 20 }}>
-                {/* HEADER */}
+                {/* HEADER AVEC LE NOUVEAU BOUTON ADMIN */}
                 <View style={styles.headerContainer}>
+                    <TouchableOpacity onPress={() => router.push('/requests')} style={styles.adminBtn}>
+                        <Ionicons name="shield-checkmark-outline" size={24} color={COLORS.primary || '#38BDF8'} />
+                    </TouchableOpacity>
+
                     <Text style={styles.headerTitle}>Profil</Text>
+
                     <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
                         <Ionicons name="settings-outline" size={24} color={COLORS.text} />
                     </TouchableOpacity>
@@ -408,7 +413,11 @@ const styles = StyleSheet.create({
     // --- Header & Tabs ---
     headerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20, position: 'relative' },
     headerTitle: { fontSize: 22, fontWeight: 'bold', color: COLORS.text, textAlign: 'center' },
+
+    // Nouveaux styles pour les boutons Header
+    adminBtn: { position: 'absolute', left: 24, top: 60, backgroundColor: 'rgba(56, 189, 248, 0.15)', padding: 6, borderRadius: 12 },
     settingsBtn: { position: 'absolute', right: 24, top: 60 },
+
     tabsContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 32, paddingBottom: 15 },
     tab: { alignItems: 'center', paddingBottom: 8 },
     tabText: { color: COLORS.notSelected, fontSize: 13, fontWeight: '600' },
