@@ -72,6 +72,23 @@ export default function FormationDetail() {
         fetchData();
     }, [id]);
 
+    const handleToggleLike = async () => {
+        if (isFetching || !id) return;
+        try {
+            const token = await AsyncStorage.getItem('userToken');
+            const method = isLiked ? 'DELETE' : 'POST';
+            const res = await fetch(`${API_URL}/formations/${id}/like`, {
+                method,
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                setIsLiked(!isLiked);
+            }
+        } catch (error) {
+            console.error("Erreur Like:", error);
+        }
+    };
+
     const handleEnrollment = async (method) => {
         if (isFetching) return;
         setIsFetching(true);
@@ -105,7 +122,7 @@ export default function FormationDetail() {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
                 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-                <style>body { margin: 0; } #map { height: 100vh; width: 100vw; }</style>
+                <style>body { margin: 0; background: #121212; } #map { height: 100vh; width: 100vw; }</style>
             </head>
             <body>
                 <div id="map"></div>
@@ -121,14 +138,12 @@ export default function FormationDetail() {
         return (
             <View style={styles.mapWrapper}>
                 {Platform.OS === 'web' ? (
-                    /* Sur WEB, on utilise une iframe standard (pas besoin de WebView) */
                     <iframe
                         title="map"
                         style={{ width: '100%', height: '100%', border: 'none' }}
                         srcDoc={mapHtml}
                     />
                 ) : (
-                    /* Sur MOBILE, on utilise la WebView native */
                     <WebView
                         originWhitelist={['*']}
                         source={{ html: mapHtml }}
@@ -164,7 +179,9 @@ export default function FormationDetail() {
                 </View>
 
                 <View style={styles.infoRow}>
-                    <Ionicons name={isLiked ? "heart" : "heart-outline"} size={32} color={isLiked ? "#EF4444" : COLORS.text} style={{marginRight: 15}} />
+                    <TouchableOpacity onPress={handleToggleLike} style={styles.heartBtn}>
+                        <Ionicons name={isLiked ? "heart" : "heart-outline"} size={32} color={isLiked ? "#EF4444" : COLORS.text} />
+                    </TouchableOpacity>
                     <View style={styles.metaInfo}>
                         <Text style={styles.dateText}>{details.isOnline ? "💻 E-Learning" : "📅 Présentiel"}</Text>
                         <Text style={styles.placesText}>{details.isOnline ? "Illimité" : `${details.nbPlacesRestantes || 0} places restantes`}</Text>
@@ -220,6 +237,7 @@ const styles = StyleSheet.create({
     topCardTextContainer: { flex: 1, marginLeft: 15 },
     description: { color: COLORS.muted, fontSize: 13, lineHeight: 18 },
     infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 },
+    heartBtn: { marginRight: 15, padding: 5 },
     metaInfo: { flex: 1 },
     dateText: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
     placesText: { color: COLORS.muted, fontSize: 12 },
