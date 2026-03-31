@@ -94,7 +94,6 @@ const FR_EN_DICT = {
     'environnement': 'environment',
     'développement personnel': 'personal development',
     'confiance': 'confidence',
-    'communication': 'communication',
     'écriture': 'writing',
     'ecriture': 'writing',
     'lecture': 'reading',
