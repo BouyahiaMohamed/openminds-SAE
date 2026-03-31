@@ -179,10 +179,15 @@ export default function FormationDetail() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                 <View style={styles.topCard}>
-                    <Image source={{ uri: details.Image }} style={styles.image} resizeMode="cover" />
-                    <View style={styles.topCardTextContainer}>
-                        <Text style={styles.description}>{details.Description || "Pas de description disponible."}</Text>
-                    </View>
+                    <Image
+                        source={{
+                            uri: details.Image?.startsWith('http')
+                                ? details.Image
+                                : `${API_URL}${details.Image}`
+                        }}
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
                 </View>
 
                 <View style={styles.infoRow}>
