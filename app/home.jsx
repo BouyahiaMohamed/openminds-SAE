@@ -56,17 +56,10 @@ export default function HomePage() {
         return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
 
-    const getDynamicImageUrl = (titre, id) => {
-        const cleanTitle = normalizeString(titre);
-        let category = "education,study";
-        if (/jardin|nature|plante|ecolo|vert|terre/i.test(cleanTitle)) category = "nature,garden,plants";
-        else if (/carbone|impact|climat|planete/i.test(cleanTitle)) category = "environment,ecology,earth";
-        else if (/prejuges|vivre|discrimination|egalite|social/i.test(cleanTitle)) category = "team,people,cooperation";
-        else if (/stress|bienetre|sante|mental|zen/i.test(cleanTitle)) category = "wellness,relax,meditation";
-        else if (/russe|langue|etranger|vocabulaire|abc/i.test(cleanTitle)) category = "dictionary,language,books";
-        else if (/agile|cyber|digital|code|tech|scrum|informatique/i.test(cleanTitle)) category = "technology,computer,code";
-        else if (/management|projet|equipe|leadership/i.test(cleanTitle)) category = "business,office,meeting";
-        return `https://loremflickr.com/300/300/${category}?lock=${id}`;
+    const getImageUrl = (imagePath) => {
+        if (!imagePath) return `https://picsum.photos/seed/default/300/300`;
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${API_URL}${imagePath}`;
     };
 
     useEffect(() => {
@@ -75,32 +68,41 @@ export default function HomePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-                const resFormations = await fetch(`${API_URL}/my-formations`, { method: 'GET', headers });
-                if (resFormations.ok) {
-                    const data = await resFormations.json();
-                    const sortedData = data.sort((a, b) => new Date(a.DateHeure) - new Date(b.DateHeure));
-
-                    setFormations(sortedData.map(form => ({
-                        ...form,
-                        id: form.id_formation,
-                        isOnline: !!form.isOnline,
-                        image: getDynamicImageUrl(form.Titre, form.id_formation)
-                    })));
+                // ── Formations ──
+                try {
+                    const resFormations = await fetch(`${API_URL}/my-formations`, { method: 'GET', headers });
+                    if (resFormations.ok) {
+                        const data = await resFormations.json();
+                        console.log('🖼️ Première formation reçue:', JSON.stringify(data[0]));
+                        const sortedData = data.sort((a, b) => new Date(a.DateHeure) - new Date(b.DateHeure));
+                        setFormations(sortedData.map(form => ({
+                            ...form,
+                            id: form.id_formation,
+                            isOnline: !!form.isOnline,
+                            image: getImageUrl(form.Image)
+                        })));
+                    }
+                } catch (e) {
+                    console.error('Erreur my-formations:', e);
                 }
 
-                const resFavs = await fetch(`${API_URL}/my-favorites`, { method: 'GET', headers });
-                if (resFavs.ok) {
-                    const data = await resFavs.json();
-                    setFavorites(data.map(form => ({
-                        ...form,
-                        id: form.id,
-                        isOnline: !!form.isOnline,
-                        image: getDynamicImageUrl(form.Titre, form.id)
-                    })));
+                // ── Favoris ──
+                try {
+                    const resFavs = await fetch(`${API_URL}/my-favorites`, { method: 'GET', headers });
+                    if (resFavs.ok) {
+                        const data = await resFavs.json();
+                        console.log('❤️ Premier favori reçu:', JSON.stringify(data[0]));
+                        setFavorites(data.map(form => ({
+                            ...form,
+                            id: form.id,
+                            isOnline: !!form.isOnline,
+                            image: getImageUrl(form.Image)
+                        })));
+                    }
+                } catch (e) {
+                    console.error('Erreur my-favorites:', e);
                 }
 
-            } catch (error) {
-                console.error("Erreur fetchData:", error);
             } finally {
                 setIsLoading(false);
             }
