@@ -19,7 +19,6 @@ LocaleConfig.defaultLocale = 'fr';
 export default function AddFormation() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
-    const [isGeneratingIA, setIsGeneratingIA] = useState(false); // AJOUT : État chargement IA
     const [popup, setPopup] = useState({ visible: false, title: '', message: '', success: false });
     const [isCalendarVisible, setIsCalendarVisible] = useState(false);
     const [addressSuggestions, setAddressSuggestions] = useState([]);
@@ -84,21 +83,29 @@ export default function AddFormation() {
         if (!result.canceled) {
             setImageUri(result.assets[0].uri);
             setGeneratedImageUrl(null);
-            setIsGeneratingIA(false); // Reset IA si on upload
         }
     };
 
-    // CORRECTION IA : Ajout d'un seed pour forcer le rafraîchissement
     const generateRandomImage = () => {
         if (!formData.Titre) {
-            setPopup({ visible: true, title: 'Attention', message: 'Veuillez saisir un titre pour générer une image correspondante.', success: false });
+            setPopup({
+                visible: true,
+                title: 'Attention',
+                message: 'Veuillez saisir un titre pour générer une image correspondante.',
+                success: false
+            });
             return;
         }
-        setIsGeneratingIA(true);
+
+        // Ajout d'un seed aléatoire pour forcer une nouvelle image
         const seed = Math.floor(Math.random() * 1000000);
-        const prompt = encodeURIComponent(formData.Titre + " professional photography high quality");
-        setGeneratedImageUrl(`https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true&seed=${seed}`);
-        setImageUri(null);
+        const prompt = encodeURIComponent(formData.Titre + " professional course education photography realistic");
+
+        // On construit l'URL avec le seed
+        const url = `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true&seed=${seed}`;
+
+        setGeneratedImageUrl(url);
+        setImageUri(null); // On reset l'image uploadée si on génère par IA
     };
 
     const handleSubmit = async () => {
@@ -123,22 +130,46 @@ export default function AddFormation() {
             if (imageUri) {
                 let filename = imageUri.split('/').pop() || 'photo.jpg';
                 let match = /\.(\w+)$/.exec(filename);
-                let type = match ? `image/${match[1]}` : `image/jpeg`;
-                payload.append('image', { uri: imageUri, name: filename, type: type });
+                let ext = match ? match[1].toLowerCase() : 'jpg';
+                let type = (ext === 'png') ? 'image/png' : 'image/jpeg';
+                let cleanUri = Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri;
+
+                payload.append('image', {
+                    uri: cleanUri,
+                    name: filename,
+                    type: type
+                });
             } else if (generatedImageUrl) {
                 payload.append('generatedImage', generatedImageUrl);
+            } else {
+                const fallbackPrompt = encodeURIComponent(formData.Titre + " professional course education photography realistic");
+                payload.append('generatedImage', `https://image.pollinations.ai/prompt/${fallbackPrompt}?width=600&height=400&nologo=true`);
             }
 
             const response = await fetch(`${API_URL}/formations`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
                 body: payload
             });
 
             if (response.ok) {
-                setPopup({ visible: true, title: 'Succès', message: 'Ta proposition a bien été envoyée !', success: true });
+                setPopup({
+                    visible: true,
+                    title: 'Succès',
+                    message: 'Ta proposition a bien été envoyée. Elle sera visible une fois validée !',
+                    success: true
+                });
             } else {
-                throw new Error("Erreur lors de l'ajout.");
+                const errorText = await response.text();
+                try {
+                    const errorData = JSON.parse(errorText);
+                    throw new Error(errorData.error || "Erreur lors de l'ajout.");
+                } catch (parseError) {
+                    throw new Error("Erreur de route. Le serveur a renvoyé une page (404/500).");
+                }
             }
         } catch (error) {
             setPopup({ visible: true, title: 'Erreur', message: error.message, success: false });
@@ -157,7 +188,10 @@ export default function AddFormation() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <Text style={styles.infoText}>Propose une nouvelle formation ! Elle sera revue par l'équipe avant d'être publiée.</Text>
+
+                <Text style={styles.infoText}>
+                    Propose une nouvelle formation ! Elle passera en revue par l'équipe de modération avant d'être publiée.
+                </Text>
 
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Image de la formation</Text>
@@ -171,57 +205,85 @@ export default function AddFormation() {
                             <Text style={styles.imageBtnText}>Générer par IA</Text>
                         </TouchableOpacity>
                     </View>
-
                     {(imageUri || generatedImageUrl) && (
-                        <View style={{ position: 'relative', marginTop: 15 }}>
-                            <Image
-                                source={{ uri: imageUri || generatedImageUrl }}
-                                style={styles.imagePreview}
-                                onLoadEnd={() => setIsGeneratingIA(false)}
-                            />
-                            {isGeneratingIA && (
-                                <View style={[styles.imagePreview, { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }]}>
-                                    <ActivityIndicator size="large" color={COLORS.primary} />
-                                    <Text style={{ color: '#FFF', marginTop: 10, fontSize: 12 }}>Génération de l'image...</Text>
-                                </View>
-                            )}
-                        </View>
+                        <Image
+                            source={{ uri: imageUri || generatedImageUrl }}
+                            style={styles.imagePreview}
+                        />
                     )}
                 </View>
 
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Titre de la formation *</Text>
-                    <TextInput style={styles.input} placeholder="Ex: Apprendre React Native" placeholderTextColor={COLORS.muted} value={formData.Titre} onChangeText={(t) => handleChange('Titre', t)} />
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Ex: Apprendre React Native"
+                        placeholderTextColor={COLORS.muted}
+                        value={formData.Titre}
+                        onChangeText={(text) => handleChange('Titre', text)}
+                    />
                 </View>
 
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Description</Text>
-                    <TextInput style={[styles.input, styles.textArea]} placeholder="Détails..." placeholderTextColor={COLORS.muted} multiline value={formData.Description} onChangeText={(t) => handleChange('Description', t)} />
+                    <TextInput
+                        style={[styles.input, styles.textArea]}
+                        placeholder="Détaille le programme ici..."
+                        placeholderTextColor={COLORS.muted}
+                        multiline
+                        numberOfLines={4}
+                        value={formData.Description}
+                        onChangeText={(text) => handleChange('Description', text)}
+                    />
                 </View>
 
                 <View style={styles.switchGroup}>
                     <View>
                         <Text style={styles.label}>Format du cours</Text>
-                        <Text style={styles.subLabel}>{formData.isOnline ? '💻 E-Learning' : '📍 Présentiel'}</Text>
+                        <Text style={styles.subLabel}>{formData.isOnline ? '💻 E-Learning (En ligne)' : '📍 Présentiel (Sur place)'}</Text>
                     </View>
-                    <Switch value={formData.isOnline} onValueChange={(val) => handleChange('isOnline', val)} trackColor={{ false: '#3e3e3e', true: COLORS.primary }} />
+                    <Switch
+                        value={formData.isOnline}
+                        onValueChange={(val) => {
+                            handleChange('isOnline', val);
+                            if (val) setAddressSuggestions([]);
+                        }}
+                        trackColor={{ false: '#3e3e3e', true: COLORS.primary }}
+                        thumbColor={formData.isOnline ? '#fff' : '#f4f3f4'}
+                    />
                 </View>
 
                 {!formData.isOnline && (
-                    <View style={styles.formGroup}>
+                    <View style={[styles.formGroup, { zIndex: 10 }]}>
                         <Text style={styles.label}>Adresse du lieu</Text>
                         <View style={styles.addressInputContainer}>
-                            <TextInput style={[styles.input, { flex: 1, borderWidth: 0 }]} placeholder="Adresse..." placeholderTextColor={COLORS.muted} value={formData.Adresse} onChangeText={searchAddress} />
+                            <TextInput
+                                style={[styles.input, { flex: 1, borderWidth: 0 }]}
+                                placeholder="Commencez à taper l'adresse..."
+                                placeholderTextColor={COLORS.muted}
+                                value={formData.Adresse}
+                                onChangeText={searchAddress}
+                            />
                             {isSearchingAddress && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: 15 }} />}
                         </View>
+
                         {addressSuggestions.length > 0 && (
-                            <View style={styles.suggestionsContainer}>
-                                {addressSuggestions.map((item, i) => (
-                                    <TouchableOpacity key={i} style={styles.suggestionItem} onPress={() => selectAddress(item)}>
-                                        <Text style={styles.suggestionText}>{item}</Text>
+                            <ScrollView
+                                style={styles.suggestionsContainer}
+                                nestedScrollEnabled={true}
+                                keyboardShouldPersistTaps="handled"
+                            >
+                                {addressSuggestions.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={styles.suggestionItem}
+                                        onPress={() => selectAddress(item)}
+                                    >
+                                        <Ionicons name="location-outline" size={16} color={COLORS.muted} style={{ marginRight: 8 }} />
+                                        <Text style={styles.suggestionText} numberOfLines={2}>{item}</Text>
                                     </TouchableOpacity>
                                 ))}
-                            </View>
+                            </ScrollView>
                         )}
                     </View>
                 )}
@@ -229,49 +291,124 @@ export default function AddFormation() {
                 <View style={styles.row}>
                     <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
                         <Text style={styles.label}>Date *</Text>
-                        <TouchableOpacity style={styles.dateSelector} onPress={() => setIsCalendarVisible(true)}>
+                        <TouchableOpacity
+                            style={styles.dateSelector}
+                            onPress={() => setIsCalendarVisible(true)}
+                        >
                             <Ionicons name="calendar-outline" size={20} color={formData.Date ? COLORS.text : COLORS.muted} style={{ marginRight: 10 }} />
-                            <Text style={{ color: formData.Date ? COLORS.text : COLORS.muted }}>{formData.Date || "Choisir"}</Text>
+                            <Text style={{ color: formData.Date ? COLORS.text : COLORS.muted, fontSize: 15 }}>
+                                {formData.Date ? formData.Date : "Choisir un jour"}
+                            </Text>
                         </TouchableOpacity>
                     </View>
+
                     <View style={[styles.formGroup, { flex: 0.6 }]}>
                         <Text style={styles.label}>Heure *</Text>
-                        <TextInput style={styles.input} placeholder="09:00" placeholderTextColor={COLORS.muted} value={formData.Heure} onChangeText={(t) => handleChange('Heure', t)} maxLength={5} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="HH:MM"
+                            placeholderTextColor={COLORS.muted}
+                            value={formData.Heure}
+                            onChangeText={(text) => handleChange('Heure', text)}
+                            maxLength={5}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.row}>
+                    <View style={[styles.formGroup, { flex: 0.5, marginRight: 10 }]}>
+                        <Text style={styles.label}>Places dispo.</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Ex: 20"
+                            placeholderTextColor={COLORS.muted}
+                            keyboardType="numeric"
+                            value={formData.nbPlaces}
+                            onChangeText={(text) => handleChange('nbPlaces', text)}
+                        />
                     </View>
                 </View>
 
                 <View style={styles.formGroup}>
-                    <Text style={styles.label}>Places & Intervenants</Text>
-                    <View style={styles.row}>
-                        <TextInput style={[styles.input, {flex: 0.4, marginRight: 10}]} placeholder="Places" placeholderTextColor={COLORS.muted} keyboardType="numeric" value={formData.nbPlaces} onChangeText={(t) => handleChange('nbPlaces', t)} />
-                        <TextInput style={[styles.input, {flex: 1}]} placeholder="Formateur" placeholderTextColor={COLORS.muted} value={formData.Formateurs} onChangeText={(t) => handleChange('Formateurs', t)} />
-                    </View>
+                    <Text style={styles.label}>Intervenant(s)</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Ton nom ou celui du formateur"
+                        placeholderTextColor={COLORS.muted}
+                        value={formData.Formateurs}
+                        onChangeText={(text) => handleChange('Formateurs', text)}
+                    />
                 </View>
 
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={isLoading}>
-                    {isLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Envoyer la proposition</Text>}
+                <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <ActivityIndicator color="#FFF" />
+                    ) : (
+                        <>
+                            <Ionicons name="paper-plane-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
+                            <Text style={styles.submitBtnText}>Envoyer la proposition</Text>
+                        </>
+                    )}
                 </TouchableOpacity>
 
                 <View style={{ height: 40 }} />
             </ScrollView>
 
-            <Modal animationType="fade" transparent visible={isCalendarVisible}>
+            <Modal animationType="fade" transparent={true} visible={isCalendarVisible} onRequestClose={() => setIsCalendarVisible(false)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.calendarModalContent}>
-                        <Calendar minDate={new Date().toISOString().split('T')[0]} onDayPress={handleDayPress} theme={{ calendarBackground: '#1C1D3B', dayTextColor: '#FFF', todayTextColor: '#FF4B4B', arrowColor: COLORS.primary }} />
-                        <TouchableOpacity onPress={() => setIsCalendarVisible(false)} style={{ marginTop: 15, alignItems: 'center' }}><Text style={{ color: COLORS.primary }}>ANNULER</Text></TouchableOpacity>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                            <Text style={styles.modalTitle}>Sélectionner une date</Text>
+                            <TouchableOpacity onPress={() => setIsCalendarVisible(false)}>
+                                <Ionicons name="close" size={24} color={COLORS.muted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Calendar
+                            minDate={new Date().toISOString().split('T')[0]}
+                            onDayPress={handleDayPress}
+                            theme={{
+                                calendarBackground: '#1C1D3B',
+                                textSectionTitleColor: COLORS.muted,
+                                selectedDayBackgroundColor: COLORS.primary,
+                                selectedDayTextColor: '#ffffff',
+                                todayTextColor: '#FF4B4B',
+                                dayTextColor: COLORS.text,
+                                textDisabledColor: 'rgba(255,255,255,0.2)',
+                                monthTextColor: COLORS.text,
+                                arrowColor: COLORS.primary,
+                            }}
+                            markedDates={formData.Date ? {
+                                [formData.Date]: { selected: true, selectedColor: COLORS.primary }
+                            } : {}}
+                        />
                     </View>
                 </View>
             </Modal>
 
-            <Modal animationType="fade" transparent visible={popup.visible}>
+            <Modal animationType="fade" transparent={true} visible={popup.visible}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Ionicons name={popup.success ? "checkmark-circle" : "alert-circle"} size={60} color={popup.success ? "#4ade80" : "#EF4444"} />
+                        <Ionicons
+                            name={popup.success ? "checkmark-circle" : "alert-circle"}
+                            size={60}
+                            color={popup.success ? "#4ade80" : "#EF4444"}
+                            style={{ marginBottom: 15 }}
+                        />
                         <Text style={styles.modalTitle}>{popup.title}</Text>
                         <Text style={styles.modalMessage}>{popup.message}</Text>
-                        <TouchableOpacity style={styles.modalBtnOK} onPress={() => { setPopup({ ...popup, visible: false }); if (popup.success) router.back(); }}>
-                            <Text style={styles.modalBtnOKText}>OK</Text>
+                        <TouchableOpacity
+                            style={styles.modalBtnOK}
+                            onPress={() => {
+                                setPopup({ ...popup, visible: false });
+                                if (popup.success) router.back();
+                            }}
+                        >
+                            <Text style={styles.modalBtnOKText}>OK, compris</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -282,33 +419,33 @@ export default function AddFormation() {
 
 const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20 },
-    backBtn: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8 },
-    headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginRight: 40 },
+    backBtn: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, zIndex: 1 },
+    headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginLeft: -40 },
     content: { paddingHorizontal: 20 },
-    infoText: { color: COLORS.primary, fontSize: 13, marginBottom: 25, textAlign: 'center', fontStyle: 'italic', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: 12, borderRadius: 10 },
+    infoText: { color: COLORS.primary, fontSize: 14, marginBottom: 25, textAlign: 'center', fontStyle: 'italic', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: 15, borderRadius: 12 },
     formGroup: { marginBottom: 20 },
+    row: { flexDirection: 'row', justifyContent: 'space-between' },
     label: { color: COLORS.text, fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
     subLabel: { color: COLORS.muted, fontSize: 12, marginTop: -4 },
-    input: { backgroundColor: 'rgba(255,255,255,0.03)', color: COLORS.text, borderRadius: 12, padding: 15, fontSize: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    input: { backgroundColor: 'rgba(255,255,255,0.03)', color: COLORS.text, borderRadius: 12, padding: 15, fontSize: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     textArea: { height: 100, textAlignVertical: 'top' },
-    switchGroup: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 12 },
+    switchGroup: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     addressInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    suggestionsContainer: { backgroundColor: '#1C1D3B', borderRadius: 12, marginTop: 5, padding: 5 },
-    suggestionItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-    suggestionText: { color: COLORS.text, fontSize: 13 },
-    dateSelector: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-    imageButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between' },
-    imageBtn: { flex: 0.48, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    imageBtnText: { color: '#FFF', marginLeft: 8, fontSize: 12 },
-    imagePreview: { width: '100%', height: 180, borderRadius: 12 },
-    submitBtn: { backgroundColor: COLORS.primary, paddingVertical: 18, borderRadius: 15, alignItems: 'center', marginTop: 10 },
+    suggestionsContainer: { backgroundColor: '#1C1D3B', borderRadius: 12, marginTop: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', maxHeight: 150, overflow: 'hidden' },
+    suggestionItem: { flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+    suggestionText: { color: COLORS.text, fontSize: 14, flex: 1 },
+    dateSelector: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', height: 55 },
+    imageButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+    imageBtn: { flex: 0.48, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    imageBtnText: { color: '#FFF', marginLeft: 8, fontSize: 14 },
+    imagePreview: { width: '100%', height: 200, borderRadius: 12, marginTop: 15 },
+    submitBtn: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingVertical: 18, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 10, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
     submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-    row: { flexDirection: 'row', justifyContent: 'space-between' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
-    modalContent: { width: '85%', backgroundColor: '#1E1E1E', borderRadius: 20, padding: 25, alignItems: 'center' },
-    calendarModalContent: { width: '90%', backgroundColor: '#1C1D3B', borderRadius: 20, padding: 20 },
-    modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginVertical: 10 },
-    modalMessage: { color: COLORS.muted, fontSize: 14, textAlign: 'center', marginBottom: 20 },
-    modalBtnOK: { backgroundColor: COLORS.primary, paddingHorizontal: 40, paddingVertical: 12, borderRadius: 10 },
-    modalBtnOKText: { color: '#FFF', fontWeight: 'bold' }
+    modalContent: { width: '80%', backgroundColor: '#1E1E1E', borderRadius: 20, padding: 25, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    calendarModalContent: { width: '90%', backgroundColor: '#1C1D3B', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    modalTitle: { color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 10 },
+    modalMessage: { color: COLORS.muted, fontSize: 14, textAlign: 'center', marginBottom: 25, lineHeight: 20 },
+    modalBtnOK: { backgroundColor: COLORS.primary, paddingHorizontal: 40, paddingVertical: 14, borderRadius: 12, width: '100%', alignItems: 'center' },
+    modalBtnOKText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
 });
