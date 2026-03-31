@@ -68,18 +68,6 @@ export default function FormationDetail() {
         fetchData();
     }, [id]);
 
-    const handleTestBadge = () => {
-        console.log("🖱️ Clic sur bouton test badge. State actuel 'badge':", badge);
-        if (!badge) {
-            alert("Aucun badge chargé. Vérifie tes logs API.");
-            return;
-        }
-        console.log("🚀 Navigation vers /success...");
-        router.push({
-            pathname: '/SuccessScreen',
-            params: { badge: JSON.stringify(badge) }
-        });
-    };
 
     const handleToggleLike = async () => {
         if (isFetching || !id) return;
@@ -168,6 +156,18 @@ export default function FormationDetail() {
     if (loading) return <AppBackground><ActivityIndicator size="large" color={COLORS.primary} style={{flex:1}} /></AppBackground>;
     if (!details) return <AppBackground><Text style={styles.errorText}>Formation introuvable.</Text></AppBackground>;
 
+
+    const goToQuiz = () => {
+        // On envoie l'ID de la formation à la page quiz
+        router.push({
+            pathname: '/quiz',
+            params: { id: id,
+                titre: details.Titre}
+        });
+    };
+
+
+
     return (
         <AppBackground>
             <View style={styles.header}>
@@ -222,10 +222,19 @@ export default function FormationDetail() {
                     <Text style={styles.reserveBtnText}>{details.isEnrolled ? "Se désinscrire" : "S'inscrire à la formation"}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.testBadgeBtn} onPress={handleTestBadge}>
-                    <Ionicons name="trophy-outline" size={20} color={COLORS.primary} style={{marginRight: 8}} />
-                    <Text style={styles.testBadgeBtnText}>Tester l'obtention du badge</Text>
-                </TouchableOpacity>
+
+                {details.isEnrolled ? (
+                    <TouchableOpacity
+                        style={styles.quizBtn}
+                        onPress={() => router.push({
+                            pathname: '/quiz',
+                            params: { id: id, titre: details.Titre }
+                        })}
+                    >
+                        <Ionicons name="school-outline" size={22} color="#FFF" style={{marginRight: 10}} />
+                        <Text style={styles.quizBtnText}>Passer le Quiz de validation</Text>
+                    </TouchableOpacity>
+                ) : null}
             </ScrollView>
 
             <Modal animationType="fade" transparent visible={popup.visible}>
@@ -289,4 +298,20 @@ const styles = StyleSheet.create({
         borderStyle: 'dashed',
     },
     testBadgeBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' },
+    quizBtn: {
+        marginTop: 12,
+        backgroundColor: '#27AE60',
+        borderRadius: 15,
+        paddingVertical: 18,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        boxShadow: '0px 4px 10px rgba(39, 174, 96, 0.3)',
+        elevation: 5,
+    },
+    quizBtnText: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
 });
