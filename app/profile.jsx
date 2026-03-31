@@ -24,9 +24,8 @@ export default function ProfilePage() {
     const [progressions, setProgressions] = useState([]);
     const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [teachingSessions, setTeachingSessions] = useState([]);
-    const [isTeachingLoading, setIsTeachingLoading] = useState(false);
+    // NOUVEAU : State pour les points rouges du calendrier Animateur
+    const [markedDatesAnimateur, setMarkedDatesAnimateur] = useState({});
 
     const [markedDates, setMarkedDates] = useState({});
     const [selectedCalSession, setSelectedCalSession] = useState(null);
@@ -42,10 +41,12 @@ export default function ProfilePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-                const [resBadges, resProgress, resCalendar] = await Promise.all([
+                // On ajoute l'appel API pour tes sessions à animer directement ici
+                const [resBadges, resProgress, resCalendar, resAnimateur] = await Promise.all([
                     fetch(`${API_URL}/my-badges`, { headers }),
                     fetch(`${API_URL}/my-online-progress`, { headers }),
-                    fetch(`${API_URL}/my-formations`, { headers })
+                    fetch(`${API_URL}/my-formations`, { headers }),
+                    fetch(`${API_URL}/my-teaching-sessions`, { headers }) // 👈 Ajouté
                 ]);
 
                 if (resBadges.ok) setBadges(await resBadges.json());
@@ -60,6 +61,7 @@ export default function ProfilePage() {
                     })));
                 }
 
+                // Calendrier : Tes réservations (Points Bleus)
                 if (resCalendar.ok) {
                     const dataCalendar = await resCalendar.json();
                     let datesForCalendar = {};
@@ -72,7 +74,7 @@ export default function ProfilePage() {
 
                             datesForCalendar[dateString] = {
                                 marked: true,
-                                dotColor: '#FF4B4B',
+                                dotColor: COLORS.primary, // Bleu pour les réservations
                                 title: form.Titre,
                                 hour: `${dateObj.getHours()}h${minutes}`,
                                 lieu: form.Adresse || "Adresse communiquée par le formateur"
@@ -80,6 +82,24 @@ export default function ProfilePage() {
                         }
                     });
                     setMarkedDates(datesForCalendar);
+                }
+
+                // Calendrier : Sessions à animer (Points Rouges)
+                if (resAnimateur.ok) {
+                    const dataAnimateur = await resAnimateur.json();
+                    let datesAnimateur = {};
+
+                    dataAnimateur.forEach(session => {
+                        if (session.DateHeure) {
+                            const dateString = session.DateHeure.split('T')[0];
+                            datesAnimateur[dateString] = {
+                                marked: true,
+                                dotColor: '#FF4B4B', // Rouge pour animer
+                                session: session // On garde les données pour la redirection
+                            };
+                        }
+                    });
+                    setMarkedDatesAnimateur(datesAnimateur);
                 }
 
             } catch (error) {
@@ -92,66 +112,7 @@ export default function ProfilePage() {
         fetchInitialData();
     }, []);
 
-    useEffect(() => {
-        const fetchTeachingSessions = async () => {
-            setIsTeachingLoading(true);
-            try {
-                const token = await AsyncStorage.getItem('userToken');
-                const dateAPI = new Date(selectedDate.getTime() - (selectedDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-
-                const res = await fetch(`${API_URL}/my-teaching-sessions/by-date?date=${dateAPI}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    setTeachingSessions(data);
-                }
-            } catch (error) {
-                console.error("👉 Erreur fetch sessions:", error);
-            } finally {
-                setIsTeachingLoading(false);
-            }
-        };
-        fetchTeachingSessions();
-    }, [selectedDate]);
-
-    const addDays = (days) => {
-        const newDate = new Date(selectedDate);
-        newDate.setDate(newDate.getDate() + days);
-        setSelectedDate(newDate);
-    };
-
-    const formatDateForUI = (date) => {
-        const today = new Date();
-        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-        const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-
-        if (date.toDateString() === today.toDateString()) return "Aujourd'hui";
-        if (date.toDateString() === tomorrow.toDateString()) return "Demain";
-        if (date.toDateString() === yesterday.toDateString()) return "Hier";
-
-        return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    };
-
-    const getFormattedTime = (dateString, durationMinutes = 90) => {
-        const start = new Date(dateString);
-        const end = new Date(start.getTime() + durationMinutes * 60000);
-        const format = (d) => `${d.getHours()}h${d.getMinutes() === 0 ? '00' : d.getMinutes().toString().padStart(2, '0')}`;
-        return `${format(start)} - ${format(end)}`;
-    };
-
-    const getStatusStyle = (session) => {
-        const isPast = new Date(session.DateHeure) < new Date();
-        const statutLabel = session.Statut || (isPast ? 'Terminer' : 'À Venir');
-
-        if (statutLabel.includes('Terminer')) {
-            return { icon: 'checkmark-circle', color: '#4ade80', text: 'Terminer' };
-        } else {
-            return { icon: 'time', color: '#f59e0b', text: 'À Venir' };
-        }
-    };
-
+    // Action au clic sur le calendrier de tes réservations
     const handleCalDayPress = (day) => {
         if (markedDates[day.dateString]) {
             setSelectedCalSession(markedDates[day.dateString]);
@@ -193,14 +154,13 @@ export default function ProfilePage() {
         <AppBackground>
             <View style={{ flex: 1, paddingTop: 20 }}>
                 <View style={styles.headerContainer}>
-                    {/* Le bouton bouclier d'origine en haut à gauche */}
-                    <TouchableOpacity onPress={() => router.push('/requests')} style={styles.adminBtn}>
-                        <Ionicons name="shield-checkmark" size={24} color="#38BDF8" />
-                    </TouchableOpacity>
 
-                    <View style={styles.titleWrapper}>
-                        <Text style={styles.headerTitle}>Profil</Text>
-                    </View>
+                                    {/* Boîte invisible pour équilibrer et centrer le titre */}
+                                    <View style={{ width: 40 }} />
+
+                                    <View style={styles.titleWrapper}>
+                                        <Text style={styles.headerTitle}>Profil</Text>
+                                    </View>
 
                     <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
                         <Ionicons name="settings-outline" size={24} color={COLORS.text} />
@@ -236,12 +196,12 @@ export default function ProfilePage() {
                                             <View key={badge.id || index} style={styles.badgeWrapper}>
                                                 <View style={styles.badgeIconBg}>
                                                     {badge.URLImage ? (
-// Remarque bien le {{ uri: ... }}
                                                         <Image
                                                             source={{ uri: `${API_URL}/uploads${badge.URLImage}` }}
                                                             style={styles.badgeImage}
                                                             resizeMode="contain"
-                                                        />                                                    ) : (
+                                                        />
+                                                    ) : (
                                                         <Ionicons name="medal" size={32} color="#FFD700" />
                                                     )}
                                                 </View>
@@ -265,61 +225,9 @@ export default function ProfilePage() {
                                 )}
                             </View>
 
+                            {/* LE NOUVEAU CALENDRIER SESSIONS A ANIMER */}
                             <View onLayout={(e) => handleLayout('Mes Formations', e)} style={styles.section}>
                                 <Text style={styles.sectionTitle}>Mes sessions à animer</Text>
-
-                                <View style={styles.dateNavigator}>
-                                    <TouchableOpacity onPress={() => addDays(-1)} style={styles.arrowButton}>
-                                        <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                    <Text style={styles.dateText}>
-                                        {formatDateForUI(selectedDate).charAt(0).toUpperCase() + formatDateForUI(selectedDate).slice(1)}
-                                    </Text>
-                                    <TouchableOpacity onPress={() => addDays(1)} style={styles.arrowButton}>
-                                        <Ionicons name="chevron-forward" size={24} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                </View>
-
-                                {isTeachingLoading ? (
-                                    <ActivityIndicator size="small" color="#38BDF8" style={{ marginTop: 20 }} />
-                                ) : teachingSessions.length > 0 ? (
-                                    <View style={styles.bubbleWrapper}>
-                                        <View style={styles.bubbleContainer}>
-                                            {teachingSessions.map((session, index) => {
-                                                const status = getStatusStyle(session);
-                                                const isLast = index === teachingSessions.length - 1;
-
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={session.id_session || index}
-                                                        style={[styles.sessionRow, !isLast && styles.borderBottom]}
-                                                        onPress={() => router.push({ pathname: '/attendance', params: { id: session.id_session }})}
-                                                    >
-                                                        <View style={styles.leftContent}>
-                                                            <Text style={styles.timeText}>{getFormattedTime(session.DateHeure, session.Duree)}</Text>
-                                                            <Text style={styles.titleText}>{session.Titre}</Text>
-                                                        </View>
-                                                        <View style={styles.rightContent}>
-                                                            <Ionicons name={status.icon} size={28} color={status.color} style={{ marginBottom: 4 }} />
-                                                            <View style={[styles.statusPill, { backgroundColor: status.color }]}>
-                                                                <Text style={styles.statusText}>{status.text}</Text>
-                                                            </View>
-                                                        </View>
-                                                    </TouchableOpacity>
-                                                );
-                                            })}
-                                        </View>
-                                        <View style={styles.dateSeparator}>
-                                            <Text style={styles.dateSeparatorText}>{teachingSessions.length} Session{teachingSessions.length > 1 ? 's' : ''}</Text>
-                                        </View>
-                                    </View>
-                                ) : (
-                                    <Text style={styles.emptyText}>Aucune session prévue pour ce jour.</Text>
-                                )}
-                            </View>
-
-                            <View onLayout={(e) => handleLayout('Calendrier', e)} style={styles.section}>
-                                <Text style={styles.sectionTitle}>Mes réservations</Text>
 
                                 <View style={styles.calendarCard}>
                                     <Calendar
@@ -332,51 +240,22 @@ export default function ProfilePage() {
                                             todayTextColor: '#FF4B4B',
                                             dayTextColor: COLORS.text,
                                             textDisabledColor: 'rgba(255,255,255,0.2)',
-                                            dotColor: COLORS.primary,
+                                            dotColor: '#FF4B4B',
                                             monthTextColor: COLORS.text,
                                         }}
-                                        markedDates={markedDates}
-                                        onDayPress={handleCalDayPress}
+                                        markedDates={markedDatesAnimateur}
+                                        onDayPress={(day) => {
+                                            const sessionData = markedDatesAnimateur[day.dateString]?.session;
+                                            if (sessionData) {
+                                                router.push({ pathname: '/attendance', params: { id: sessionData.id_session || sessionData.id } });
+                                            }
+                                        }}
                                     />
                                 </View>
-
-                                <Modal animationType="fade" transparent={true} visible={modalCalVisible} onRequestClose={() => setModalCalVisible(false)}>
-                                    <View style={styles.modalOverlay}>
-                                        <View style={styles.modalContent}>
-
-                                            <View style={styles.modalHeader}>
-                                                <Text style={styles.modalTitle} numberOfLines={2}>{selectedCalSession?.title}</Text>
-                                                <TouchableOpacity onPress={() => setModalCalVisible(false)} style={styles.closeIconBtn}>
-                                                    <Ionicons name="close" size={24} color={COLORS.muted} />
-                                                </TouchableOpacity>
-                                            </View>
-
-                                            <View style={styles.divider} />
-
-                                            <View style={styles.infoRow}>
-                                                <View style={styles.iconBox}><Ionicons name="time-outline" size={22} color={COLORS.primary} /></View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={styles.infoLabel}>Horaire</Text>
-                                                    <Text style={styles.infoText}>{selectedCalSession?.hour}</Text>
-                                                </View>
-                                            </View>
-
-                                            <View style={styles.infoRow}>
-                                                <View style={styles.iconBox}><Ionicons name="location-outline" size={22} color="#FF4B4B" /></View>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={styles.infoLabel}>Lieu</Text>
-                                                    <Text style={styles.infoText}>{selectedCalSession?.lieu}</Text>
-                                                </View>
-                                            </View>
-
-                                            <TouchableOpacity style={styles.actionBtn} onPress={() => setModalCalVisible(false)}>
-                                                <Text style={styles.actionBtnText}>Fermer</Text>
-                                            </TouchableOpacity>
-
-                                        </View>
-                                    </View>
-                                </Modal>
                             </View>
+
+                            {/* LE CALENDRIER DES RÉSERVATIONS */}
+
 
                             {/* NOUVEAU BOUTON ADMIN TOUT EN BAS */}
                             <TouchableOpacity
@@ -417,21 +296,6 @@ const styles = StyleSheet.create({
     badgeIconBg: { backgroundColor: '#1C1D3B', width: 75, height: 75, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
     badgeImage: { width: 40, height: 40 },
     badgeText: { color: COLORS.text, fontSize: 11, textAlign: 'center', fontWeight: '600', paddingHorizontal: 2 },
-    dateNavigator: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1C1D3B', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 15, marginBottom: 20 },
-    arrowButton: { padding: 5 },
-    dateText: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
-    bubbleWrapper: { alignItems: 'center', marginBottom: 10 },
-    bubbleContainer: { backgroundColor: '#26284A', borderRadius: 24, paddingVertical: 5, width: '100%' },
-    sessionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20 },
-    borderBottom: { borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.05)' },
-    leftContent: { flex: 1, justifyContent: 'center' },
-    timeText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
-    titleText: { color: '#E2E8F0', fontSize: 14 },
-    rightContent: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
-    statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    statusText: { color: '#1C1D3B', fontSize: 10, fontWeight: 'bold' },
-    dateSeparator: { backgroundColor: '#1C1D3B', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 12, marginTop: -12, borderWidth: 2, borderColor: COLORS.sectionBg },
-    dateSeparatorText: { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
     calendarCard: { backgroundColor: '#1C1D3B', borderRadius: 25, padding: 10, paddingBottom: 20 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
     modalContent: { width: '85%', backgroundColor: '#1C1D3B', borderRadius: 25, padding: 25 },
@@ -445,7 +309,6 @@ const styles = StyleSheet.create({
     infoText: { fontSize: 16, color: COLORS.text, fontWeight: '600' },
     actionBtn: { marginTop: 10, backgroundColor: COLORS.primary, paddingVertical: 15, borderRadius: 20, alignItems: 'center' },
     actionBtnText: { color: COLORS.text, fontWeight: 'bold', fontSize: 16 },
-
     adminDashboardBtn: {
         flexDirection: 'row',
         backgroundColor: COLORS.primary || '#38BDF8',
@@ -454,11 +317,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: 10,
-        marginBottom: 40, // 👈 C'EST ICI QUE CA SE PASSE (ajoute plus si besoin)
+        marginBottom: 40,
         shadowColor: COLORS.primary || '#38BDF8',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
         elevation: 5
-    },adminDashboardBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    },
+    adminDashboardBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
 });

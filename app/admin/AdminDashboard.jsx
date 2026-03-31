@@ -74,7 +74,7 @@ export default function AdminDashboard() {
         { title: "Modération Formations", icon: "shield-checkmark", route: "/admin/ModerationFormations" },
         { title: "Calendrier Global", icon: "calendar", route: "/admin/calendar" },
         { title: "Gestion Catalogue", icon: "library", route: "/admin/catalogue" },
-        { title: "Validation Certifications", icon: "school", route: "/admin/certifications" },
+        { title: "Validation Certifications", icon: "school", route: "/admin/requests" },
         { title: "Gestion Partenaires", icon: "business", route: "/admin/partenaires" }
     ];
 

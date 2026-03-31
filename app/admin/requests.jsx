@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { AppBackground, BottomNav } from '../components/ui/UI';
-import { API_URL } from '../config';
+import { AppBackground, BottomNav } from '../../components/ui/UI';
+import { API_URL } from '../../config';
 
 const COLORS = {
     background: '#13142b',
@@ -69,7 +69,7 @@ export default function RequestsPage() {
 
                 {/* HEADER */}
                 <View style={styles.headerContainer}>
-                    <TouchableOpacity onPress={() => router.push('/profile')} style={styles.backBtn}>
+                    <TouchableOpacity onPress={() => router.push('/admin/AdminDashboard')} style={styles.backBtn}>
                         <Ionicons name="chevron-back" size={28} color={COLORS.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Validation Certifications</Text>
