@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Switch, ActivityIndicator, Modal, Keyboard } from 'react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -16,6 +16,7 @@ LocaleConfig.locales['fr'] = {
 LocaleConfig.defaultLocale = 'fr';
 
 export default function AddFormation() {
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [popup, setPopup] = useState({ visible: false, title: '', message: '', success: false });
 
@@ -102,7 +103,6 @@ export default function AddFormation() {
                 body: JSON.stringify(payload)
             });
 
-            // CORRECTION DE L'ERREUR JSON ICI 👇
             if (response.ok) {
                 setPopup({
                     visible: true,
@@ -111,12 +111,11 @@ export default function AddFormation() {
                     success: true
                 });
             } else {
-                const errorText = await response.text(); // On lit d'abord en texte brut
+                const errorText = await response.text();
                 try {
-                    const errorData = JSON.parse(errorText); // On essaie de convertir en JSON
+                    const errorData = JSON.parse(errorText);
                     throw new Error(errorData.error || "Erreur lors de l'ajout.");
                 } catch (parseError) {
-                    // Si ça plante, c'est que c'est du HTML
                     console.error("Le serveur a renvoyé du HTML :", errorText.substring(0, 100));
                     throw new Error("Erreur de route. Le serveur a renvoyé une page (404/500). As-tu bien redémarré le serveur Node ?");
                 }
@@ -197,7 +196,6 @@ export default function AddFormation() {
                             {isSearchingAddress && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: 15 }} />}
                         </View>
 
-                        {/* CORRECTION DU DÉBORDEMENT ICI 👇 */}
                         {addressSuggestions.length > 0 && (
                             <ScrollView
                                 style={styles.suggestionsContainer}
@@ -353,30 +351,21 @@ const styles = StyleSheet.create({
     backBtn: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, zIndex: 1 },
     headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginLeft: -40 },
     content: { paddingHorizontal: 20 },
-
     infoText: { color: COLORS.primary, fontSize: 14, marginBottom: 25, textAlign: 'center', fontStyle: 'italic', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: 15, borderRadius: 12 },
-
     formGroup: { marginBottom: 20 },
     row: { flexDirection: 'row', justifyContent: 'space-between' },
     label: { color: COLORS.text, fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
     subLabel: { color: COLORS.muted, fontSize: 12, marginTop: -4 },
     input: { backgroundColor: 'rgba(255,255,255,0.03)', color: COLORS.text, borderRadius: 12, padding: 15, fontSize: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     textArea: { height: 100, textAlignVertical: 'top' },
-
     switchGroup: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-
     addressInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-
-    // Modification majeure ici : overflow caché et ScrollView
     suggestionsContainer: { backgroundColor: '#1C1D3B', borderRadius: 12, marginTop: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', maxHeight: 150, overflow: 'hidden' },
     suggestionItem: { flexDirection: 'row', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
     suggestionText: { color: COLORS.text, fontSize: 14, flex: 1 },
-
     dateSelector: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', height: 55 },
-
     submitBtn: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingVertical: 18, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 10, shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 5 },
     submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
     modalContent: { width: '80%', backgroundColor: '#1E1E1E', borderRadius: 20, padding: 25, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     calendarModalContent: { width: '90%', backgroundColor: '#1C1D3B', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
