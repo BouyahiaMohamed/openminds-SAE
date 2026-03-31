@@ -123,6 +123,9 @@ export default function AddFormation() {
     const [isSearchingAddress, setIsSearchingAddress] = useState(false);
     const [imageUri, setImageUri] = useState(null);
     const [generatedImageUrl, setGeneratedImageUrl] = useState(null);
+    const [quiz, setQuiz] = useState([
+        { text: '', reponses: [{ text: '', isCorrect: true }, { text: '', isCorrect: false }] }
+    ]);
 
     // Banque d'images (Openverse)
     const [isImageBankVisible, setIsImageBankVisible] = useState(false);
@@ -145,7 +148,8 @@ export default function AddFormation() {
         Date: '',
         Heure: '09:00',
         nbPlaces: '',
-        Formateurs: ''
+        Formateurs: '',
+        URLVideo: '',
     });
 
     const handleChange = (name, value) => {
@@ -370,10 +374,38 @@ export default function AddFormation() {
         }
     };
 
+    const addQuestion = () => {
+        setQuiz([...quiz, { text: '', reponses: [{ text: '', isCorrect: true }, { text: '', isCorrect: false }] }]);
+    };
+
+    const updateQuestionText = (index, text) => {
+        const newQuiz = [...quiz];
+        newQuiz[index].text = text;
+        setQuiz(newQuiz);
+    };
+
+    const updateReponseText = (qIndex, rIndex, text) => {
+        const newQuiz = [...quiz];
+        newQuiz[qIndex].reponses[rIndex].text = text;
+        setQuiz(newQuiz);
+    };
+
+    const setCorrectReponse = (qIndex, rIndex) => {
+        const newQuiz = [...quiz];
+        newQuiz[qIndex].reponses.forEach((r, i) => r.isCorrect = i === rIndex);
+        setQuiz(newQuiz);
+    };
+
+    const addReponse = (qIndex) => {
+        const newQuiz = [...quiz];
+        newQuiz[qIndex].reponses.push({ text: '', isCorrect: false });
+        setQuiz(newQuiz);
+    };
+
     // ─── Soumission ──────────────────────────────────────────────────────────────
 
     const handleSubmit = async () => {
-        if (!formData.Titre || !formData.Date) {
+        if (!formData.Titre || !formData.Date && !formData.isOnline) {
             setPopup({ visible: true, title: 'Erreur', message: "Le titre et la date sont requis.", success: false });
             return;
         }
@@ -387,11 +419,13 @@ export default function AddFormation() {
             payload.append('Description', formData.Description || '');
             payload.append('isOnline', formData.isOnline ? '1' : '0');
             payload.append('Adresse', formData.isOnline ? '' : formData.Adresse);
+            payload.append('URLVideo', formData.isOnline ? formData.URLVideo : '');
 
             // On sécurise le format de la date
             const datePropre = `${formData.Date} ${formData.Heure || '09:00'}:00`;
             payload.append('DateHeure', datePropre);
             payload.append('nbPlacesRestantes', formData.nbPlaces || '0');
+            payload.append('quiz', JSON.stringify(quiz));
 
             if (imageUri) {
                 const filename = imageUri.split('/').pop() || 'photo.jpg';
@@ -555,6 +589,7 @@ export default function AddFormation() {
                 )}
 
                 {/* ── DATE & HEURE ── */}
+                {!formData.isOnline && (
                 <View style={styles.row}>
                     <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
                         <Text style={styles.label}>Date *</Text>
@@ -576,9 +611,10 @@ export default function AddFormation() {
                             maxLength={5}
                         />
                     </View>
-                </View>
+                </View> )}
 
                 {/* ── PLACES ── */}
+                {!formData.isOnline && (
                 <View style={styles.row}>
                     <View style={[styles.formGroup, { flex: 0.5, marginRight: 10 }]}>
                         <Text style={styles.label}>Places dispo.</Text>
@@ -591,9 +627,10 @@ export default function AddFormation() {
                             onChangeText={(text) => handleChange('nbPlaces', text)}
                         />
                     </View>
-                </View>
+                </View> )}
 
                 {/* ── FORMATEURS ── */}
+                {!formData.isOnline && (
                 <View style={styles.formGroup}>
                     <Text style={styles.label}>Intervenant(s)</Text>
                     <TextInput
@@ -603,6 +640,79 @@ export default function AddFormation() {
                         value={formData.Formateurs}
                         onChangeText={(text) => handleChange('Formateurs', text)}
                     />
+                </View> )}
+                {/* ── URL VIDÉO (Apparaît seulement si EN LIGNE) ── */}
+                {formData.isOnline && (
+                    <View style={styles.formGroup}>
+                        <Text style={styles.label}>URL de la vidéo de formation *</Text>
+                        <View style={styles.addressInputContainer}>
+                            <Ionicons name="logo-youtube" size={20} color="#FF0000" style={{ marginLeft: 15 }} />
+                            <TextInput
+                                style={[styles.input, { flex: 1, borderWidth: 0 }]}
+                                placeholder="Lien YouTube, Vimeo ou MP4..."
+                                placeholderTextColor={COLORS.muted}
+                                value={formData.URLVideo}
+                                onChangeText={(text) => handleChange('URLVideo', text)}
+                            />
+                        </View>
+                    </View>
+                )}
+                {/* ── SECTION QUIZ ── */}
+                <View style={styles.quizSection}>
+                    <View style={styles.quizHeaderRow}>
+                        <Ionicons name="list-outline" size={20} color={COLORS.primary} />
+                        <Text style={[styles.label, { marginBottom: 0, marginLeft: 10 }]}>Configuration du Quiz</Text>
+                    </View>
+
+                    {quiz.map((q, qIndex) => (
+                        <View key={qIndex} style={styles.quizQuestionCard}>
+                            <View style={styles.row}>
+                                <Text style={styles.questionNumber}>Question {qIndex + 1}</Text>
+                                {quiz.length > 1 && (
+                                    <TouchableOpacity onPress={() => setQuiz(quiz.filter((_, i) => i !== qIndex))}>
+                                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Votre question..."
+                                placeholderTextColor={COLORS.muted}
+                                value={q.text}
+                                onChangeText={(t) => updateQuestionText(qIndex, t)}
+                            />
+
+                            <Text style={[styles.label, { fontSize: 12, marginTop: 15 }]}>Réponses (cochez la bonne)</Text>
+                            {q.reponses.map((r, rIndex) => (
+                                <View key={rIndex} style={styles.reponseRow}>
+                                    <TouchableOpacity onPress={() => setCorrectReponse(qIndex, rIndex)}>
+                                        <Ionicons
+                                            name={r.isCorrect ? "checkmark-circle" : "ellipse-outline"}
+                                            size={24}
+                                            color={r.isCorrect ? "#4ade80" : COLORS.muted}
+                                        />
+                                    </TouchableOpacity>
+                                    <TextInput
+                                        style={[styles.input, { flex: 1, marginLeft: 10, paddingVertical: 8 }]}
+                                        placeholder={`Réponse ${rIndex + 1}`}
+                                        placeholderTextColor={COLORS.muted}
+                                        value={r.text}
+                                        onChangeText={(t) => updateReponseText(qIndex, rIndex, t)}
+                                    />
+                                </View>
+                            ))}
+
+                            <TouchableOpacity style={styles.addReponseBtn} onPress={() => addReponse(qIndex)}>
+                                <Text style={styles.addReponseText}>+ Ajouter une réponse</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ))}
+
+                    <TouchableOpacity style={styles.addQuestionBtn} onPress={addQuestion}>
+                        <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                        <Text style={styles.addQuestionText}>Ajouter une question</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* ── SUBMIT ── */}
@@ -871,4 +981,13 @@ const styles = StyleSheet.create({
     aiOptionTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold', marginBottom: 3 },
     aiOptionDesc: { color: COLORS.muted, fontSize: 12, lineHeight: 16 },
     aiDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginVertical: 6 },
+    quizSection: { marginTop: 10, marginBottom: 30 },
+    quizHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+    quizQuestionCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 15, padding: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    questionNumber: { color: COLORS.primary, fontWeight: 'bold', marginBottom: 10 },
+    reponseRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    addReponseBtn: { alignSelf: 'flex-end', marginTop: 5 },
+    addReponseText: { color: COLORS.primary, fontSize: 12, fontWeight: 'bold' },
+    addQuestionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: COLORS.primary, borderStyle: 'dashed' },
+    addQuestionText: { color: COLORS.primary, fontWeight: 'bold', marginLeft: 8 },
 });
