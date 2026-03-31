@@ -11,39 +11,44 @@ import { COLORS } from '../constants/theme';
 export default function FormationDetail() {
     const { id } = useLocalSearchParams();
     const [details, setDetails] = useState(null);
+    const [badge, setBadge] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isFetching, setIsFetching] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
     const [popup, setPopup] = useState({ visible: false, title: '', message: '', onConfirm: null });
     const [mapRegion, setMapRegion] = useState(null);
 
-    const openExternalMap = (adresse) => {
-        if (!adresse) return;
-        const encoded = encodeURIComponent(adresse);
-        const url = Platform.select({
-            ios: `maps:0,0?q=${encoded}`,
-            android: `geo:0,0?q=${encoded}`,
-            default: `http://google.com/maps?q=${encoded}`
-        });
-        Linking.openURL(url);
-    };
-
     useEffect(() => {
         const fetchData = async () => {
             if (!id || isFetching) return;
             setIsFetching(true);
+            console.log(`\n--- 🚀 [DEBUG] Chargement Formation ID: ${id} ---`);
+
             try {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
 
-                const [resDetails, resLikes] = await Promise.all([
+                // On récupère tout d'un coup
+                const [resDetails, resLikes, resBadge] = await Promise.all([
                     fetch(`${API_URL}/formations/${id}`, { headers }).then(r => r.json()),
-                    fetch(`${API_URL}/likes`, { headers }).then(r => r.json())
+                    fetch(`${API_URL}/likes`, { headers }).then(r => r.json()),
+                    fetch(`${API_URL}/formations/${id}/badge`, { headers }).then(r => r.json())
                 ]);
+
+                console.log("📥 [Détails]:", resDetails.Titre);
+                console.log("📥 [Badge API]:", resBadge);
 
                 setDetails(resDetails);
                 setIsLiked(resLikes?.some(l => l.Id_Formation === parseInt(id)) || false);
 
+                if (!resBadge.error) {
+                    setBadge(resBadge);
+                    console.log("✅ Badge stocké dans le state");
+                } else {
+                    console.warn("⚠️ Pas de badge trouvé pour cette formation en BDD");
+                }
+
+                // Logique OpenStreetMap
                 if (!resDetails.isOnline && resDetails.Adresse) {
                     const osmRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(resDetails.Adresse)}`, {
                         headers: { 'User-Agent': 'OpenMindsApp/1.0' }
@@ -54,7 +59,7 @@ export default function FormationDetail() {
                     }
                 }
             } catch (error) {
-                console.error("Erreur Fetch:", error);
+                console.error("❌ Erreur Fetch global:", error);
             } finally {
                 setLoading(false);
                 setIsFetching(false);
@@ -62,6 +67,19 @@ export default function FormationDetail() {
         };
         fetchData();
     }, [id]);
+
+    const handleTestBadge = () => {
+        console.log("🖱️ Clic sur bouton test badge. State actuel 'badge':", badge);
+        if (!badge) {
+            alert("Aucun badge chargé. Vérifie tes logs API.");
+            return;
+        }
+        console.log("🚀 Navigation vers /success...");
+        router.push({
+            pathname: '/SuccessScreen',
+            params: { badge: JSON.stringify(badge) }
+        });
+    };
 
     const handleToggleLike = async () => {
         if (isFetching || !id) return;
@@ -136,6 +154,17 @@ export default function FormationDetail() {
         );
     };
 
+    const openExternalMap = (adresse) => {
+        if (!adresse) return;
+        const encoded = encodeURIComponent(adresse);
+        const url = Platform.select({
+            ios: `maps:0,0?q=${encoded}`,
+            android: `geo:0,0?q=${encoded}`,
+            default: `http://google.com/maps?q=${encoded}`
+        });
+        Linking.openURL(url);
+    };
+
     if (loading) return <AppBackground><ActivityIndicator size="large" color={COLORS.primary} style={{flex:1}} /></AppBackground>;
     if (!details) return <AppBackground><Text style={styles.errorText}>Formation introuvable.</Text></AppBackground>;
 
@@ -150,12 +179,7 @@ export default function FormationDetail() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                 <View style={styles.topCard}>
-                    {/* UTILISATION DIRECTE DE L'URL BDD */}
-                    <Image
-                        source={{ uri: details.Image }}
-                        style={styles.image}
-                        resizeMode="cover"
-                    />
+                    <Image source={{ uri: details.Image }} style={styles.image} resizeMode="cover" />
                     <View style={styles.topCardTextContainer}>
                         <Text style={styles.description}>{details.Description || "Pas de description disponible."}</Text>
                     </View>
@@ -191,6 +215,11 @@ export default function FormationDetail() {
                     onPress={() => handleEnrollment(details.isEnrolled ? 'DELETE' : 'POST')}
                 >
                     <Text style={styles.reserveBtnText}>{details.isEnrolled ? "Se désinscrire" : "S'inscrire à la formation"}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.testBadgeBtn} onPress={handleTestBadge}>
+                    <Ionicons name="trophy-outline" size={20} color={COLORS.primary} style={{marginRight: 8}} />
+                    <Text style={styles.testBadgeBtnText}>Tester l'obtention du badge</Text>
                 </TouchableOpacity>
             </ScrollView>
 
@@ -241,5 +270,18 @@ const styles = StyleSheet.create({
     modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
     modalMessage: { color: COLORS.muted, fontSize: 14, textAlign: 'center', marginBottom: 20 },
     modalBtnOK: { backgroundColor: COLORS.primary, paddingHorizontal: 30, paddingVertical: 10, borderRadius: 10 },
-    modalBtnOKText: { color: '#FFF', fontWeight: 'bold' }
+    modalBtnOKText: { color: '#FFF', fontWeight: 'bold' },
+    testBadgeBtn: {
+        marginTop: 15,
+        backgroundColor: 'transparent',
+        borderRadius: 15,
+        paddingVertical: 15,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        borderStyle: 'dashed',
+    },
+    testBadgeBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' },
 });
