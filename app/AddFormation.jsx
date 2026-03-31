@@ -438,7 +438,7 @@ export default function AddFormation() {
                 keyboardShouldPersistTaps="handled"
             >
                 <Text style={styles.infoText}>
-                    Propose une nouvelle formation ! Elle passera en revue par l'équipe de modération avant d'être publiée.
+                    {"Propose une nouvelle formation ! Elle passera en revue par l'équipe de modération avant d'être publiée."}
                 </Text>
 
                 {/* ── IMAGE ── */}
@@ -759,7 +759,7 @@ export default function AddFormation() {
                                 <Ionicons name="close" size={24} color={COLORS.muted} />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.aiSubtitle}>Pour "{formData.Titre}"</Text>
+                        <Text style={styles.aiSubtitle}>Pour {formData.Titre}</Text>
 
                         <TouchableOpacity style={styles.aiOptionBtn} onPress={generatePollinationsImage}>
                             <View style={styles.aiOptionIcon}>
