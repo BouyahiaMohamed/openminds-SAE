@@ -1,19 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, StyleSheet, ActivityIndicator, View, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Text, TouchableOpacity, StyleSheet, ActivityIndicator, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { COLORS } from '../constants/theme';
 import { PageTemplate } from '../components/ui/PageTemplate';
 import { FormationCard } from '../components/ui/FormationCard';
 import { API_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
 
 export default function HomePage() {
+    const { user } = useAuth();
+
     const TABS = ["Mes Formations", "Favoris ❤️"];
     const [activeTab, setActiveTab] = useState(TABS[0]);
 
     const [formations, setFormations] = useState([]);
     const [favorites, setFavorites] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const [displayName, setDisplayName] = useState("Chargement...");
+
+    useFocusEffect(
+        useCallback(() => {
+            const fetchName = async () => {
+                if (user) {
+                    const userKey = user.id || user.email;
+                    const savedPseudo = await AsyncStorage.getItem(`pseudo_${userKey}`);
+
+                    if (savedPseudo) {
+                        // 1. S'il a défini un pseudo dans les paramètres, on met le pseudo
+                        setDisplayName(savedPseudo);
+                    } else if (user.isAdmin === 1) {
+                        // 2. Si c'est un Super-Admin
+                        setDisplayName("Admin");
+                    } else {
+                        // 3. Si le mot "formateur" est dans son mail ou son nom
+                        const rawName = user.userName || user.username || user.email || "";
+                        if (rawName.toLowerCase().includes('formateur')) {
+                            setDisplayName("Formateur");
+                        } else {
+                            // 4. Sinon, on met son nom, et si c'est un email on enlève le "@..."
+                            const cleanName = rawName.split('@')[0];
+                            // On met la première lettre en majuscule
+                            setDisplayName(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
+                        }
+                    }
+                }
+            };
+            fetchName();
+        }, [user])
+    );
 
     const normalizeString = (str) => {
         if (!str) return '';
@@ -39,7 +75,6 @@ export default function HomePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-                // 1. Récupérer les formations (Inscrit)
                 const resFormations = await fetch(`${API_URL}/my-formations`, { method: 'GET', headers });
                 if (resFormations.ok) {
                     const data = await resFormations.json();
@@ -53,7 +88,6 @@ export default function HomePage() {
                     })));
                 }
 
-                // 2. Récupérer les FAVORIS
                 const resFavs = await fetch(`${API_URL}/my-favorites`, { method: 'GET', headers });
                 if (resFavs.ok) {
                     const data = await resFavs.json();
@@ -79,7 +113,7 @@ export default function HomePage() {
 
     return (
         <PageTemplate
-            title="Mon Apprentissage"
+            title={`Bonjour ${displayName} 👋`}
             tabs={TABS}
             activeTab={activeTab}
             onTabChange={setActiveTab}
@@ -92,7 +126,6 @@ export default function HomePage() {
                     <Text style={styles.sectionTitle}>Mes coups de cœur</Text>
                     {favorites.length > 0 ? (
                         favorites.map(item => (
-                            // 👉 PLUS DE "onPress" ICI, LA CARTE GÈRE LE CLIC !
                             <FormationCard key={`fav-${item.id}`} item={item} />
                         ))
                     ) : (
@@ -104,7 +137,6 @@ export default function HomePage() {
                     <Text style={styles.sectionTitle}>Sessions à venir (Présentiel)</Text>
                     {presentielCourses.length > 0 ? (
                         presentielCourses.map(item => (
-                            // 👉 PLUS DE "onPress" ICI NON PLUS !
                             <FormationCard key={`pres-${item.id}`} item={item} />
                         ))
                     ) : (
@@ -116,7 +148,6 @@ export default function HomePage() {
                     <Text style={styles.sectionTitle}>E-Learning (Accès illimité)</Text>
                     {onlineCourses.length > 0 ? (
                         onlineCourses.map(item => (
-                            // 👉 ET PLUS DE "onPress" ICI !
                             <FormationCard key={`online-${item.id}`} item={item} />
                         ))
                     ) : (
