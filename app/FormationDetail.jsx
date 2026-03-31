@@ -17,22 +17,13 @@ export default function FormationDetail() {
     const [popup, setPopup] = useState({ visible: false, title: '', message: '', onConfirm: null });
     const [mapRegion, setMapRegion] = useState(null);
 
-    const getDynamicImageUrl = (titre, id) => {
-        const str = titre ? titre.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : '';
-        let category = "education,study";
-        if (/jardin|nature|plante/i.test(str)) category = "nature,garden";
-        else if (/carbone|climat/i.test(str)) category = "environment,ecology";
-        else if (/agile|cyber|digital/i.test(str)) category = "technology,computer";
-        return `https://loremflickr.com/300/300/${category}?lock=${id}`;
-    };
-
     const openExternalMap = (adresse) => {
         if (!adresse) return;
         const encoded = encodeURIComponent(adresse);
         const url = Platform.select({
             ios: `maps:0,0?q=${encoded}`,
             android: `geo:0,0?q=${encoded}`,
-            default: `https://www.google.com/maps/search/?api=1&query=${encoded}`
+            default: `http://google.com/maps?q=${encoded}`
         });
         Linking.openURL(url);
     };
@@ -63,7 +54,7 @@ export default function FormationDetail() {
                     }
                 }
             } catch (error) {
-                console.error(error);
+                console.error("Erreur Fetch:", error);
             } finally {
                 setLoading(false);
                 setIsFetching(false);
@@ -81,9 +72,7 @@ export default function FormationDetail() {
                 method,
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (res.ok) {
-                setIsLiked(!isLiked);
-            }
+            if (res.ok) setIsLiked(!isLiked);
         } catch (error) {
             console.error("Erreur Like:", error);
         }
@@ -115,41 +104,30 @@ export default function FormationDetail() {
 
     const renderMap = () => {
         if (!mapRegion) return <ActivityIndicator size="small" color={COLORS.primary} />;
-
         const mapHtml = `
-        <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-                <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-                <style>body { margin: 0; background: #121212; } #map { height: 100vh; width: 100vw; }</style>
-            </head>
-            <body>
-                <div id="map"></div>
-                <script>
-                    var map = L.map('map', {zoomControl: false}).setView([${mapRegion.lat}, ${mapRegion.lon}], 14);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                    L.marker([${mapRegion.lat}, ${mapRegion.lon}]).addTo(map);
-                </script>
-            </body>
-        </html>
-    `;
-
+            <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+                    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+                    <style>body { margin: 0; background: #121212; } #map { height: 100vh; width: 100vw; }</style>
+                </head>
+                <body>
+                    <div id="map"></div>
+                    <script>
+                        var map = L.map('map', {zoomControl: false}).setView([${mapRegion.lat}, ${mapRegion.lon}], 14);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                        L.marker([${mapRegion.lat}, ${mapRegion.lon}]).addTo(map);
+                    </script>
+                </body>
+            </html>
+        `;
         return (
             <View style={styles.mapWrapper}>
                 {Platform.OS === 'web' ? (
-                    <iframe
-                        title="map"
-                        style={{ width: '100%', height: '100%', border: 'none' }}
-                        srcDoc={mapHtml}
-                    />
+                    <iframe title="map" style={{ width: '100%', height: '100%', border: 'none' }} srcDoc={mapHtml} />
                 ) : (
-                    <WebView
-                        originWhitelist={['*']}
-                        source={{ html: mapHtml }}
-                        style={styles.webView}
-                        scrollEnabled={false}
-                    />
+                    <WebView originWhitelist={['*']} source={{ html: mapHtml }} style={styles.webView} scrollEnabled={false} />
                 )}
                 <TouchableOpacity style={styles.itineraireBtn} onPress={() => openExternalMap(details.Adresse)}>
                     <Ionicons name="navigate" size={18} color="#FFF" />
@@ -172,7 +150,12 @@ export default function FormationDetail() {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                 <View style={styles.topCard}>
-                    <Image source={{ uri: getDynamicImageUrl(details.Titre, details.id) }} style={styles.image} />
+                    {/* UTILISATION DIRECTE DE L'URL BDD */}
+                    <Image
+                        source={{ uri: details.Image }}
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
                     <View style={styles.topCardTextContainer}>
                         <Text style={styles.description}>{details.Description || "Pas de description disponible."}</Text>
                     </View>
@@ -233,7 +216,7 @@ const styles = StyleSheet.create({
     headerTitle: { flex: 1, fontSize: 18, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginRight: 40 },
     content: { paddingHorizontal: 20, paddingBottom: 40 },
     topCard: { flexDirection: 'row', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 },
-    image: { width: 90, height: 90, borderRadius: 15 },
+    image: { width: 90, height: 90, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.1)' },
     topCardTextContainer: { flex: 1, marginLeft: 15 },
     description: { color: COLORS.muted, fontSize: 13, lineHeight: 18 },
     infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 20 },
@@ -245,7 +228,7 @@ const styles = StyleSheet.create({
     mapContainer: { flex: 1.3, marginRight: 15 },
     mapWrapper: { height: 140, borderRadius: 15, overflow: 'hidden', backgroundColor: '#000', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     webView: { flex: 1, opacity: 0.9 },
-    itineraireBtn: { position: 'absolute', bottom: 10, right: 10, backgroundColor: COLORS.primary, width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+    itineraireBtn: { position: 'absolute', bottom: 10, right: 10, backgroundColor: COLORS.primary, width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
     addressText: { color: COLORS.muted, fontSize: 10, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
     onlinePlaceholder: { height: 140, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center' },
     formateursContainer: { flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', padding: 15, borderRadius: 15 },
