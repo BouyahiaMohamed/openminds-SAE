@@ -152,7 +152,11 @@ export default function FormationDetail() {
                 <View style={styles.topCard}>
                     {/* UTILISATION DIRECTE DE L'URL BDD */}
                     <Image
-                        source={{ uri: details.Image }}
+                        source={{
+                            uri: details.Image?.startsWith('http')
+                                ? details.Image
+                                : `${API_URL}${details.Image}`
+                        }}
                         style={styles.image}
                         resizeMode="cover"
                     />
