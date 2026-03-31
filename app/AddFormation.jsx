@@ -373,53 +373,46 @@ export default function AddFormation() {
     // ─── Soumission ──────────────────────────────────────────────────────────────
 
     const handleSubmit = async () => {
-        if (!formData.Titre || !formData.Date || !formData.Heure) {
-            setPopup({ visible: true, title: 'Erreur', message: "Le titre, la date et l'heure sont obligatoires.", success: false });
+        if (!formData.Titre || !formData.Date) {
+            setPopup({ visible: true, title: 'Erreur', message: "Le titre et la date sont requis.", success: false });
             return;
         }
+
         setIsLoading(true);
         try {
             const token = await AsyncStorage.getItem('userToken');
             const payload = new FormData();
+
             payload.append('Titre', formData.Titre);
-            payload.append('Description', formData.Description);
+            payload.append('Description', formData.Description || '');
             payload.append('isOnline', formData.isOnline ? '1' : '0');
             payload.append('Adresse', formData.isOnline ? '' : formData.Adresse);
-            payload.append('DateHeure', `${formData.Date} ${formData.Heure}:00`);
+
+            // On sécurise le format de la date
+            const datePropre = `${formData.Date} ${formData.Heure || '09:00'}:00`;
+            payload.append('DateHeure', datePropre);
             payload.append('nbPlacesRestantes', formData.nbPlaces || '0');
-            payload.append('Formateurs', formData.Formateurs);
 
             if (imageUri) {
                 const filename = imageUri.split('/').pop() || 'photo.jpg';
-                const match = /\.(\w+)$/.exec(filename);
-                const ext = match ? match[1].toLowerCase() : 'jpg';
-                const type = ext === 'png' ? 'image/png' : 'image/jpeg';
-                const cleanUri = Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri;
-                payload.append('image', { uri: cleanUri, name: filename, type });
+                payload.append('image', { uri: imageUri, name: filename, type: 'image/jpeg' });
             } else if (generatedImageUrl) {
                 payload.append('generatedImage', generatedImageUrl);
-            } else {
-                // Fallback image par défaut
-                const seed = Math.floor(Math.random() * 999);
-                payload.append('generatedImage', `https://picsum.photos/seed/${seed}/600/400`);
             }
 
             const response = await fetch(`${API_URL}/formations`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+                headers: { 'Authorization': `Bearer ${token}` },
                 body: payload
             });
 
+            const resData = await response.json();
+
             if (response.ok) {
-                setPopup({ visible: true, title: 'Succès', message: 'Ta proposition a bien été envoyée. Elle sera visible une fois validée !', success: true });
+                setPopup({ visible: true, title: 'Succès', message: 'Proposition envoyée !', success: true });
             } else {
-                const errorText = await response.text();
-                try {
-                    const errorData = JSON.parse(errorText);
-                    throw new Error(errorData.error || "Erreur lors de l'ajout.");
-                } catch {
-                    throw new Error("Erreur serveur (404/500). Vérifie la route API.");
-                }
+                // Affiche "details" qui contient le message SQL précis du serveur
+                throw new Error(resData.details || resData.error || "Erreur serveur");
             }
         } catch (error) {
             setPopup({ visible: true, title: 'Erreur', message: error.message, success: false });
