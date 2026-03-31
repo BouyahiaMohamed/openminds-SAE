@@ -22,7 +22,6 @@ export default function FormationDetail() {
         const fetchData = async () => {
             if (!id || isFetching) return;
             setIsFetching(true);
-            console.log(`\n--- 🚀 [DEBUG] Chargement Formation ID: ${id} ---`);
 
             try {
                 const token = await AsyncStorage.getItem('userToken');
@@ -35,15 +34,12 @@ export default function FormationDetail() {
                     fetch(`${API_URL}/formations/${id}/badge`, { headers }).then(r => r.json())
                 ]);
 
-                console.log("📥 [Détails]:", resDetails.Titre);
-                console.log("📥 [Badge API]:", resBadge);
 
                 setDetails(resDetails);
                 setIsLiked(resLikes?.some(l => l.Id_Formation === parseInt(id)) || false);
 
                 if (!resBadge.error) {
                     setBadge(resBadge);
-                    console.log("✅ Badge stocké dans le state");
                 } else {
                     console.warn("⚠️ Pas de badge trouvé pour cette formation en BDD");
                 }
@@ -69,12 +65,10 @@ export default function FormationDetail() {
     }, [id]);
 
     const handleTestBadge = () => {
-        console.log("🖱️ Clic sur bouton test badge. State actuel 'badge':", badge);
         if (!badge) {
             alert("Aucun badge chargé. Vérifie tes logs API.");
             return;
         }
-        console.log("🚀 Navigation vers /success...");
         router.push({
             pathname: '/SuccessScreen',
             params: { badge: JSON.stringify(badge) }
