@@ -187,7 +187,9 @@ export default function FormationDetail() {
                         }}
                         style={styles.image}
                         resizeMode="cover"
-                    />
+                    /><View style={styles.topCardTextContainer}>
+                    <Text style={styles.description}>{details.Description || "Pas de description disponible."}</Text>
+                </View>
                 </View>
 
                 <View style={styles.infoRow}>
