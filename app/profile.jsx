@@ -17,7 +17,7 @@ LocaleConfig.locales['fr'] = {
 LocaleConfig.defaultLocale = 'fr';
 
 export default function ProfilePage() {
-    const tabs = ['Badges', 'Progression', 'Mes Formations', 'Calendrier'];
+    const tabs = ['Badges', 'Progression', 'Mes Formations'];
     const [activeTab, setActiveTab] = useState(tabs[0]);
 
     const [isAdmin, setIsAdmin] = useState(false);
