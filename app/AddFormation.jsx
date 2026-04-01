@@ -288,47 +288,36 @@ export default function AddFormation() {
      * Génération IA via Pollinations.ai — gratuit, sans clé API.
      * On utilise directement l'URL comme source d'image (pas de FileReader en RN).
      */
+
     const generatePollinationsImage = async () => {
         setIsAiModalVisible(false);
         setIsGeneratingAi(true);
-        setAiStatusText('⏳ Génération IA en cours (10–20s)...');
+        setAiStatusText('⏳ L\'IA crée ton image (10-15s)...');
+
         try {
             const seed = Math.floor(Math.random() * 999999);
-            // Traduire le titre en anglais pour un meilleur prompt
             const titleEn = translateToEnglish(formData.Titre);
-            const prompt = encodeURIComponent(
-                `${titleEn} professional training course education, clean modern photography, studio lighting, high quality`
-            );
-            // Pollinations retourne directement une image à cette URL — pas besoin de FileReader
-            const url = `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true&seed=${seed}&model=flux`;
+            const prompt = encodeURIComponent(`${titleEn} professional training course education, clean modern photography`);
 
-            // Vérifier que l'URL est accessible (timeout 30s)
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 30000);
-            const res = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeout);
+            const url = `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true&seed=${seed}`;
 
-            if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`);
+            // On force l'application à "télécharger" l'image en cache
+            // Le code va bloquer ici tant que l'IA n'a pas fini (10-15s)
+            const response = await fetch(url);
 
-            // Utiliser directement l'URL (React Native peut afficher des URLs distantes)
-            setGeneratedImageUrl(url);
-            setImageUri(null);
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                setPopup({
-                    visible: true,
-                    title: 'Délai dépassé',
-                    message: 'La génération a pris trop de temps. Réessaie ou utilise la banque de photos.',
-                    success: false
-                });
-            } else {
-                setPopup({
-                    visible: true,
-                    title: 'Erreur IA',
-                    message: 'La génération a échoué. Réessaie ou utilise la banque de photos.',
-                    success: false
-                });
+            if (!response.ok) {
+                throw new Error("L'API IA n'a pas répondu correctement.");
             }
+
+            // Une fois que response est OK, l'image est générée sur leurs serveurs !
+            setGeneratedImageUrl(response.url || url);
+            setImageUri(null);
+
+        } catch (error) {
+            console.error("Erreur IA :", error);
+            setGeneratedImageUrl(`https://picsum.photos/seed/${Math.floor(Math.random() * 999)}/600/400`);
+            setImageUri(null);
+            setPopup({ visible: true, title: 'Oups', message: 'L\'IA est surchargée. Une image de secours a été mise.', success: false });
         } finally {
             setIsGeneratingAi(false);
             setAiStatusText('');
@@ -336,14 +325,13 @@ export default function AddFormation() {
     };
 
     /**
-     * Photo thématique via Picsum (aléatoire) ou via une image Openverse
-     * basée sur le titre traduit.
-     * Unsplash Source est déprécié, on utilise l'API Openverse à la place.
+     * Photo thématique via Openverse
      */
     const generateThematicPhoto = async () => {
         setIsAiModalVisible(false);
         setIsGeneratingAi(true);
         setAiStatusText('🔍 Recherche d\'une photo thématique...');
+
         try {
             const titleEn = translateToEnglish(formData.Titre);
             const res = await fetch(
@@ -352,19 +340,18 @@ export default function AddFormation() {
             const data = await res.json();
 
             if (data?.results?.length > 0) {
-                // Prendre une image aléatoire parmi les résultats
                 const randomIndex = Math.floor(Math.random() * Math.min(data.results.length, 10));
-                const item = data.results[randomIndex];
-                setGeneratedImageUrl(item.url);
+                const urlImage = data.results[randomIndex].url;
+
+                // ✅ On s'assure que la photo existe bien avant de l'afficher
+                await Image.prefetch(urlImage);
+
+                setGeneratedImageUrl(urlImage);
                 setImageUri(null);
             } else {
-                // Fallback : image Picsum aléatoire basée sur un seed du titre
-                const seed = formData.Titre.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-                setGeneratedImageUrl(`https://picsum.photos/seed/${seed}/600/400`);
-                setImageUri(null);
+                throw new Error("Aucune image trouvée");
             }
         } catch (error) {
-            // Fallback Picsum si l'API Openverse échoue
             const seed = Math.floor(Math.random() * 999);
             setGeneratedImageUrl(`https://picsum.photos/seed/${seed}/600/400`);
             setImageUri(null);
