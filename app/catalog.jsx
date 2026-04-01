@@ -24,8 +24,6 @@ export default function CatalogPage() {
         return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
 
-    // --- FONCTION DYNAMIC IMAGE SUPPRIMÉE ---
-
     // NOUVELLE LOGIQUE IMAGE : 100% BDD
     const getImageUrl = (imagePath) => {
         if (!imagePath) return null; // Ou une image par défaut locale
@@ -156,9 +154,12 @@ export default function CatalogPage() {
         <AppBackground>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.push('/AddFormation')} style={styles.addBtn}>
-                    <Ionicons name="add" size={28} color={COLORS.primary || '#38BDF8'} />
+                    <Ionicons name="add" size={20} color="#000" />
+                    <Text style={styles.addBtnText}>Ajouter</Text>
                 </TouchableOpacity>
+
                 <Text style={styles.headerTitle}>Catalogue</Text>
+
                 <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
                     <Ionicons name="settings-outline" size={24} color={COLORS.text} />
                 </TouchableOpacity>
@@ -218,12 +219,53 @@ export default function CatalogPage() {
     );
 }
 
-
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 60, paddingBottom: 20 },
-    headerTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.text, flex: 1, textAlign: 'center' },
-    addBtn: { backgroundColor: 'rgba(56, 189, 248, 0.15)', padding: 6, borderRadius: 12, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-    settingsBtn: { padding: 6, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingTop: 60,
+        paddingBottom: 20
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: COLORS.text,
+        flex: 1,
+        textAlign: 'center',
+        // On décale un peu le titre vers la droite pour compenser la largeur du bouton "Ajouter"
+        marginLeft: -10
+    },
+    addBtn: {
+        flexDirection: 'row',
+        backgroundColor: '#FFFFFF', // Bouton blanc
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20, // Plus arrondi
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        zIndex: 10
+    },
+    addBtnText: {
+        color: '#000',
+        fontWeight: 'bold',
+        fontSize: 13,
+        marginLeft: 4
+    },
+    settingsBtn: {
+        padding: 6,
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
     searchContainer: { flexDirection: 'row', paddingHorizontal: 24, paddingBottom: 20, gap: 12 },
     searchInputWrapper: { flex: 2, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 15, paddingHorizontal: 16, height: 44 },
     searchInput: { flex: 1, color: COLORS.text, marginLeft: 10, fontSize: 13 },

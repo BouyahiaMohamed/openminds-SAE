@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
     backBtn: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 8, zIndex: 1 },
     headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: COLORS.text, textAlign: 'center', marginLeft: -40 },
     content: { paddingHorizontal: 20 },
-    infoText: { color: COLORS.primary, fontSize: 14, marginBottom: 25, textAlign: 'center', fontStyle: 'italic', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: 15, borderRadius: 12 },
+    infoText: { color: COLORS.text  , fontSize: 14, marginBottom: 25, textAlign: 'center', fontStyle: 'italic', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: 15, borderRadius: 12 },
     formGroup: { marginBottom: 20 },
     row: { flexDirection: 'row', justifyContent: 'space-between' },
     label: { color: COLORS.text, fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
