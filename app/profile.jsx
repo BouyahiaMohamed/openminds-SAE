@@ -20,6 +20,7 @@ export default function ProfilePage() {
     const tabs = ['Badges', 'Progression', 'Mes Formations', 'Calendrier'];
     const [activeTab, setActiveTab] = useState(tabs[0]);
 
+    const [isAdmin, setIsAdmin] = useState(false);
     const [badges, setBadges] = useState([]);
     const [progressions, setProgressions] = useState([]);
     const [isLoadingInitial, setIsLoadingInitial] = useState(true);
@@ -41,12 +42,21 @@ export default function ProfilePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
+                // Décoder le JWT pour récupérer isAdmin
+                try {
+                    const base64Payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(atob(base64Payload));
+                    setIsAdmin(payload.isAdmin === 1 || payload.isAdmin === true);
+                } catch (e) {
+                    console.warn('Impossible de décoder le token JWT :', e);
+                }
+
                 // On ajoute l'appel API pour tes sessions à animer directement ici
                 const [resBadges, resProgress, resCalendar, resAnimateur] = await Promise.all([
                     fetch(`${API_URL}/my-badges`, { headers }),
                     fetch(`${API_URL}/my-online-progress`, { headers }),
                     fetch(`${API_URL}/my-formations`, { headers }),
-                    fetch(`${API_URL}/my-teaching-sessions`, { headers }) // 👈 Ajouté
+                    fetch(`${API_URL}/my-teaching-sessions`, { headers })
                 ]);
 
                 if (resBadges.ok) setBadges(await resBadges.json());
@@ -74,7 +84,7 @@ export default function ProfilePage() {
 
                             datesForCalendar[dateString] = {
                                 marked: true,
-                                dotColor: COLORS.primary, // Bleu pour les réservations
+                                dotColor: COLORS.primary,
                                 title: form.Titre,
                                 hour: `${dateObj.getHours()}h${minutes}`,
                                 lieu: form.Adresse || "Adresse communiquée par le formateur"
@@ -94,8 +104,8 @@ export default function ProfilePage() {
                             const dateString = session.DateHeure.split('T')[0];
                             datesAnimateur[dateString] = {
                                 marked: true,
-                                dotColor: '#FF4B4B', // Rouge pour animer
-                                session: session // On garde les données pour la redirection
+                                dotColor: '#FF4B4B',
+                                session: session
                             };
                         }
                     });
@@ -155,12 +165,12 @@ export default function ProfilePage() {
             <View style={{ flex: 1, paddingTop: 20 }}>
                 <View style={styles.headerContainer}>
 
-                                    {/* Boîte invisible pour équilibrer et centrer le titre */}
-                                    <View style={{ width: 40 }} />
+                    {/* Boîte invisible pour équilibrer et centrer le titre */}
+                    <View style={{ width: 40 }} />
 
-                                    <View style={styles.titleWrapper}>
-                                        <Text style={styles.headerTitle}>Profil</Text>
-                                    </View>
+                    <View style={styles.titleWrapper}>
+                        <Text style={styles.headerTitle}>Profil</Text>
+                    </View>
 
                     <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsBtn}>
                         <Ionicons name="settings-outline" size={24} color={COLORS.text} />
@@ -225,7 +235,7 @@ export default function ProfilePage() {
                                 )}
                             </View>
 
-                            {/* LE NOUVEAU CALENDRIER SESSIONS A ANIMER */}
+                            {/* LE CALENDRIER SESSIONS À ANIMER (unique, comme avant) */}
                             <View onLayout={(e) => handleLayout('Mes Formations', e)} style={styles.section}>
                                 <Text style={styles.sectionTitle}>Mes sessions à animer</Text>
 
@@ -254,17 +264,19 @@ export default function ProfilePage() {
                                 </View>
                             </View>
 
-                            {/* LE CALENDRIER DES RÉSERVATIONS */}
+                            {/* Ancre pour l'onglet Calendrier (sans contenu, comme avant) */}
+                            <View onLayout={(e) => handleLayout('Calendrier', e)} />
 
-
-                            {/* NOUVEAU BOUTON ADMIN TOUT EN BAS */}
-                            <TouchableOpacity
-                                style={styles.adminDashboardBtn}
-                                onPress={() => router.push('/admin/AdminDashboard')}
-                            >
-                                <Ionicons name="speedometer-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
-                                <Text style={styles.adminDashboardBtnText}>Tableau de bord Admin</Text>
-                            </TouchableOpacity>
+                            {/* BOUTON ADMIN — visible uniquement si isAdmin */}
+                            {isAdmin && (
+                                <TouchableOpacity
+                                    style={styles.adminDashboardBtn}
+                                    onPress={() => router.push('/admin/AdminDashboard')}
+                                >
+                                    <Ionicons name="speedometer-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
+                                    <Text style={styles.adminDashboardBtnText}>Tableau de bord Admin</Text>
+                                </TouchableOpacity>
+                            )}
 
                         </ScrollView>
                     )}

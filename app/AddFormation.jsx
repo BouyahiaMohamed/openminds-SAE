@@ -408,22 +408,32 @@ export default function AddFormation() {
             payload.append('Adresse', formData.isOnline ? '' : formData.Adresse);
             payload.append('URLVideo', formData.isOnline ? formData.URLVideo : '');
 
-            // On sécurise le format de la date
             const datePropre = `${formData.Date} ${formData.Heure || '09:00'}:00`;
             payload.append('DateHeure', datePropre);
             payload.append('nbPlacesRestantes', formData.nbPlaces || '0');
             payload.append('quiz', JSON.stringify(quiz));
 
+            // ─── LE CORRECTIF EST ICI ───
             if (imageUri) {
+                // Si c'est une image locale (Galerie)
                 const filename = imageUri.split('/').pop() || 'photo.jpg';
                 payload.append('image', { uri: imageUri, name: filename, type: 'image/jpeg' });
             } else if (generatedImageUrl) {
+                // Si c'est une image IA ou Banque (URL distante)
+                // On informe le Backend qu'on lui passe une URL pure dans le champ "generatedImage"
                 payload.append('generatedImage', generatedImageUrl);
+
+                // OPTIONNEL MAIS RECOMMANDÉ : Si l'URL est courte, le backend la stocke.
+                // Si c'est une grosse URL (Pollinations), on force l'envoi en texte pur.
             }
 
             const response = await fetch(`${API_URL}/formations`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // ⚠️ Ne SURTOUT PAS mettre 'Content-Type': 'multipart/form-data' ici
+                    // Fetch le gère automatiquement quand le body est un FormData
+                },
                 body: payload
             });
 
@@ -432,7 +442,6 @@ export default function AddFormation() {
             if (response.ok) {
                 setPopup({ visible: true, title: 'Succès', message: 'Proposition envoyée !', success: true });
             } else {
-                // Affiche "details" qui contient le message SQL précis du serveur
                 throw new Error(resData.details || resData.error || "Erreur serveur");
             }
         } catch (error) {
