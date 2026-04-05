@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SuccessScreen = () => {
     const params = useLocalSearchParams();
 
-    // 1. On récupère et on parse le badge
     let badge = null;
     if (params.badge) {
         try {
@@ -18,17 +17,14 @@ const SuccessScreen = () => {
         }
     }
 
-    // 2. DÉFINITION DE LA VARIABLE (C'est elle qui manquait !)
     const imageUrl = badge ? `${API_URL}/uploads${badge.URLImage}` : null;
 
-    // 3. ENREGISTREMENT AUTOMATIQUE DANS LA DB
     useEffect(() => {
         const claimBadge = async () => {
             if (!badge || !badge.id) return;
 
             try {
                 const token = await AsyncStorage.getItem('userToken');
-                console.log(`📡 Envoi du badge ${badge.id} à la DB...`);
 
                 const res = await fetch(`${API_URL}/my-badges/claim`, {
                     method: 'POST',
@@ -40,16 +36,14 @@ const SuccessScreen = () => {
                 });
 
                 const data = await res.json();
-                console.log("📥 Réponse serveur :", data.message);
             } catch (error) {
                 console.error("❌ Erreur claim badge :", error);
             }
         };
 
         claimBadge();
-    }, [badge]); // Se lance dès que le badge est chargé
+    }, [badge]);
 
-    // Sécurité si pas de badge
     if (!badge) {
         return (
             <SafeAreaView style={styles.container}>
@@ -109,7 +103,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F7F9F9',
         justifyContent: 'center',
         alignItems: 'center',
-        boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.15)', // Propre (pas de warning)
+        boxShadow: '0px 8px 12px rgba(0, 0, 0, 0.15)',
         elevation: 10,
     },
     badgeImage: { width: 130, height: 130 },

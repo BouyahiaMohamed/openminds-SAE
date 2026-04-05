@@ -1,12 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/theme'; // Adapte le chemin des imports si besoin
+import { COLORS } from '../../constants/theme';
 import { router } from 'expo-router';
 
 export const FormationCard = ({ item, onPress }) => {
 
-    // Gérer le clic par défaut si aucun n'est fourni
     const handlePress = () => {
         if (onPress) {
             onPress();
@@ -18,7 +17,6 @@ export const FormationCard = ({ item, onPress }) => {
         }
     };
 
-    // Formatage de la date en direct pour la Home
     let dateAffichee = item.dateLabel || "Date à définir";
     if (item.DateHeure && !item.dateLabel) {
         const d = new Date(item.DateHeure);
@@ -74,7 +72,7 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         overflow: 'hidden',
         marginRight: 15,
-        backgroundColor: '#2D2E5C' // Couleur de fond si l'image charge lentement
+        backgroundColor: '#2D2E5C'
     },
     cardImage: {
         width: '100%',

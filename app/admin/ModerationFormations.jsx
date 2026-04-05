@@ -24,7 +24,6 @@ export default function ModerationFormations() {
             if (res.ok) {
                 setPendingFormations(await res.json());
             } else {
-                // LA CORRECTION EST LÀ : on n'éjecte plus, on affiche l'erreur
                 const errorData = await res.json();
                 console.error("Erreur API:", errorData);
                 Alert.alert("Erreur API", errorData.error || "Problème d'accès. As-tu bien mis à jour la BDD ?");

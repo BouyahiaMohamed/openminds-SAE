@@ -21,38 +21,34 @@ const COLORS = {
 export default function RequestsPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
-    // 1. On prépare la boîte pour recevoir les vraies données
     const [demandes, setDemandes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // 2. On va chercher les données dans ta base (via server.js) au chargement de la page
     useEffect(() => {
         const fetchDemandes = async () => {
             try {
                 const token = await AsyncStorage.getItem('userToken');
 
-                // On appelle la route qu'on a créée dans ton server.js !
                 const response = await fetch(`${API_URL}/api/admin/certifications-attente`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    setDemandes(data); // On range les vrais utilisateurs ici
+                    setDemandes(data);
                 } else {
                     console.log("Erreur serveur lors de la récupération.");
                 }
             } catch (error) {
                 console.error("Erreur réseau :", error);
             } finally {
-                setIsLoading(false); // On arrête le petit rond de chargement
+                setIsLoading(false);
             }
         };
 
         fetchDemandes();
     }, []);
 
-    // 3. Actions (Valider / Refuser)
     const handleValider = (id_user, nom) => {
         setDemandes(prev => prev.filter(demande => demande.id_user !== id_user));
         Alert.alert("Succès", `La demande de ${nom} a été validée.`);
@@ -112,7 +108,6 @@ export default function RequestsPage() {
                             Aucune demande de certification en attente.
                         </Text>
                     ) : (
-                        // On remplace le [1,2,3] par notre liste "demandes" venant de la BDD
                         demandes.map((user) => (
                             <View key={user.id_user} style={styles.card}>
 

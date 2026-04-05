@@ -24,13 +24,11 @@ export default function CatalogPage() {
         return str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
 
-    // NOUVELLE LOGIQUE IMAGE : 100% BDD
     const getImageUrl = (imagePath) => {
-        if (!imagePath) return null; // Ou une image par défaut locale
+        if (!imagePath) return null;
         if (imagePath.startsWith('http')) {
             return imagePath;
         }
-        // Si c'est un chemin relatif genre /uploads/...
         return `${API_URL}${imagePath}`;
     };
 
@@ -57,7 +55,6 @@ export default function CatalogPage() {
                         return {
                             ...form,
                             isOnline: !!form.isOnline,
-                            // ON UTILISE LE CHAMP "Image" (I majuscule) DE LA BDD
                             imageUri: getImageUrl(form.Image),
                             dateLabel: dateAffichee,
                             timestamp: form.DateHeureRaw ? new Date(form.DateHeureRaw).getTime() : null
@@ -94,7 +91,6 @@ export default function CatalogPage() {
                 return searchArea.includes(normalizeString(filter));
             }));
         }
-        // ... tris inchangés
         setFilteredFormations(result);
     }, [searchQuery, activeFilters, dateSort, formations]);
 
@@ -234,15 +230,14 @@ const styles = StyleSheet.create({
         color: COLORS.text,
         flex: 1,
         textAlign: 'center',
-        // On décale un peu le titre vers la droite pour compenser la largeur du bouton "Ajouter"
         marginLeft: -10
     },
     addBtn: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF', // Bouton blanc
+        backgroundColor: '#FFFFFF',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 20, // Plus arrondi
+        borderRadius: 20,
         height: 40,
         justifyContent: 'center',
         alignItems: 'center',

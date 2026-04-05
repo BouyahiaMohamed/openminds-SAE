@@ -205,7 +205,7 @@ export function SettingDropdown({ title, options, initialValue }) {
 // 2. COMPOSANT : BOTTOM NAVBAR
 // ==========================================
 export const BottomNav = ({ activeTab }) => {
-    const router = useRouter(); // 👉 2. On initialise le router ICI, à l'intérieur du composant
+    const router = useRouter();
 
     return (
         <View style={styles.bottomNav}>

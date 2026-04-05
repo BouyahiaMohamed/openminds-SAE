@@ -22,33 +22,27 @@ export default function FormationDetail() {
         const fetchData = async () => {
             if (!id || isFetching) return;
             setIsFetching(true);
-            console.log(`\n--- 🚀 [DEBUG] Chargement Formation ID: ${id} ---`);
 
             try {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
 
-                // On récupère tout d'un coup
                 const [resDetails, resLikes, resBadge] = await Promise.all([
                     fetch(`${API_URL}/formations/${id}`, { headers }).then(r => r.json()),
                     fetch(`${API_URL}/likes`, { headers }).then(r => r.json()),
                     fetch(`${API_URL}/formations/${id}/badge`, { headers }).then(r => r.json())
                 ]);
 
-                console.log("📥 [Détails]:", resDetails.Titre);
-                console.log("📥 [Badge API]:", resBadge);
 
                 setDetails(resDetails);
                 setIsLiked(resLikes?.some(l => l.Id_Formation === parseInt(id)) || false);
 
                 if (!resBadge.error) {
                     setBadge(resBadge);
-                    console.log("✅ Badge stocké dans le state");
                 } else {
                     console.warn("⚠️ Pas de badge trouvé pour cette formation en BDD");
                 }
 
-                // Logique OpenStreetMap
                 if (!resDetails.isOnline && resDetails.Adresse) {
                     const osmRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(resDetails.Adresse)}`, {
                         headers: { 'User-Agent': 'OpenMindsApp/1.0' }
@@ -158,7 +152,6 @@ export default function FormationDetail() {
 
 
     const goToQuiz = () => {
-        // On envoie l'ID de la formation à la page quiz
         router.push({
             pathname: '/quiz',
             params: { id: id,

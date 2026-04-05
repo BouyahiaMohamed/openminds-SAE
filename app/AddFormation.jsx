@@ -106,7 +106,6 @@ const FR_EN_DICT = {
 const translateToEnglish = (text) => {
     if (!text) return '';
     let result = text.toLowerCase();
-    // Chercher d'abord les expressions de plusieurs mots
     const sortedKeys = Object.keys(FR_EN_DICT).sort((a, b) => b.length - a.length);
     for (const key of sortedKeys) {
         result = result.replace(new RegExp(key, 'gi'), FR_EN_DICT[key]);
@@ -127,7 +126,6 @@ export default function AddFormation() {
         { text: '', reponses: [{ text: '', isCorrect: true }, { text: '', isCorrect: false }] }
     ]);
 
-    // Banque d'images (Openverse)
     const [isImageBankVisible, setIsImageBankVisible] = useState(false);
     const [imageBankQuery, setImageBankQuery] = useState('');
     const [imageBankResults, setImageBankResults] = useState([]);
@@ -135,7 +133,6 @@ export default function AddFormation() {
     const [imageBankPage, setImageBankPage] = useState(1);
     const [imageBankHasMore, setImageBankHasMore] = useState(false);
 
-    // Modal choix IA
     const [isAiModalVisible, setIsAiModalVisible] = useState(false);
     const [isGeneratingAi, setIsGeneratingAi] = useState(false);
     const [aiStatusText, setAiStatusText] = useState('');
@@ -215,7 +212,6 @@ export default function AddFormation() {
         }
         setIsSearchingImages(true);
         try {
-            // Traduire la requête FR → EN pour de meilleurs résultats
             const englishQuery = translateToEnglish(query);
             const res = await fetch(
                 `https://api.openverse.org/v1/images/?q=${encodeURIComponent(englishQuery)}&page_size=20&page=${page}&license_type=commercial`
@@ -301,15 +297,12 @@ export default function AddFormation() {
 
             const url = `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true&seed=${seed}`;
 
-            // On force l'application à "télécharger" l'image en cache
-            // Le code va bloquer ici tant que l'IA n'a pas fini (10-15s)
             const response = await fetch(url);
 
             if (!response.ok) {
                 throw new Error("L'API IA n'a pas répondu correctement.");
             }
 
-            // Une fois que response est OK, l'image est générée sur leurs serveurs !
             setGeneratedImageUrl(response.url || url);
             setImageUri(null);
 
@@ -343,7 +336,6 @@ export default function AddFormation() {
                 const randomIndex = Math.floor(Math.random() * Math.min(data.results.length, 10));
                 const urlImage = data.results[randomIndex].url;
 
-                // ✅ On s'assure que la photo existe bien avant de l'afficher
                 await Image.prefetch(urlImage);
 
                 setGeneratedImageUrl(urlImage);
@@ -415,24 +407,16 @@ export default function AddFormation() {
 
             // ─── LE CORRECTIF EST ICI ───
             if (imageUri) {
-                // Si c'est une image locale (Galerie)
                 const filename = imageUri.split('/').pop() || 'photo.jpg';
                 payload.append('image', { uri: imageUri, name: filename, type: 'image/jpeg' });
             } else if (generatedImageUrl) {
-                // Si c'est une image IA ou Banque (URL distante)
-                // On informe le Backend qu'on lui passe une URL pure dans le champ "generatedImage"
                 payload.append('generatedImage', generatedImageUrl);
-
-                // OPTIONNEL MAIS RECOMMANDÉ : Si l'URL est courte, le backend la stocke.
-                // Si c'est une grosse URL (Pollinations), on force l'envoi en texte pur.
             }
 
             const response = await fetch(`${API_URL}/formations`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
-                    // ⚠️ Ne SURTOUT PAS mettre 'Content-Type': 'multipart/form-data' ici
-                    // Fetch le gère automatiquement quand le body est un FormData
                 },
                 body: payload
             });

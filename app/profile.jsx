@@ -25,7 +25,6 @@ export default function ProfilePage() {
     const [progressions, setProgressions] = useState([]);
     const [isLoadingInitial, setIsLoadingInitial] = useState(true);
 
-    // NOUVEAU : State pour les points rouges du calendrier Animateur
     const [markedDatesAnimateur, setMarkedDatesAnimateur] = useState({});
 
     const [markedDates, setMarkedDates] = useState({});
@@ -42,7 +41,6 @@ export default function ProfilePage() {
                 const token = await AsyncStorage.getItem('userToken');
                 const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-                // Décoder le JWT pour récupérer isAdmin
                 try {
                     const base64Payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
                     const payload = JSON.parse(atob(base64Payload));
@@ -51,7 +49,6 @@ export default function ProfilePage() {
                     console.warn('Impossible de décoder le token JWT :', e);
                 }
 
-                // On ajoute l'appel API pour tes sessions à animer directement ici
                 const [resBadges, resProgress, resCalendar, resAnimateur] = await Promise.all([
                     fetch(`${API_URL}/my-badges`, { headers }),
                     fetch(`${API_URL}/my-online-progress`, { headers }),
@@ -71,7 +68,6 @@ export default function ProfilePage() {
                     })));
                 }
 
-                // Calendrier : Tes réservations (Points Bleus)
                 if (resCalendar.ok) {
                     const dataCalendar = await resCalendar.json();
                     let datesForCalendar = {};
@@ -94,7 +90,6 @@ export default function ProfilePage() {
                     setMarkedDates(datesForCalendar);
                 }
 
-                // Calendrier : Sessions à animer (Points Rouges)
                 if (resAnimateur.ok) {
                     const dataAnimateur = await resAnimateur.json();
                     let datesAnimateur = {};
@@ -122,7 +117,6 @@ export default function ProfilePage() {
         fetchInitialData();
     }, []);
 
-    // Action au clic sur le calendrier de tes réservations
     const handleCalDayPress = (day) => {
         if (markedDates[day.dateString]) {
             setSelectedCalSession(markedDates[day.dateString]);

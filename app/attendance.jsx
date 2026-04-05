@@ -8,7 +8,6 @@ import { COLORS } from '../constants/theme';
 import { API_URL } from '../config';
 
 export default function AttendancePage() {
-    // 1. Récupération de l'ID passé dans l'URL grâce aux crochets [id].jsx
     const { id } = useLocalSearchParams();
     const router = useRouter();
 
@@ -16,30 +15,22 @@ export default function AttendancePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
-    // ==========================================
-// CHARGEMENT DES PARTICIPANTS
-// ==========================================
     useEffect(() => {
         const fetchParticipants = async () => {
-            console.log("👉 1. Début du fetch. ID de la session :", id);
 
             try {
                 const token = await AsyncStorage.getItem('userToken');
-                console.log("👉 2. Token récupéré ?", !!token); // Affiche "true" si tu as un token
 
                 const res = await fetch(`${API_URL}/sessions/${id}/participants`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                console.log("👉 3. Code HTTP reçu :", res.status);
 
                 if (res.ok) {
                     const data = await res.json();
-                    console.log("👉 4. Données de l'API :", data); // EST-CE QUE C'EST [] ?
                     setParticipants(data);
                 } else {
                     const textError = await res.text();
-                    console.log("👉 4 (Erreur). Réponse du serveur :", textError);
                     Alert.alert("Erreur", "Impossible de récupérer les participants.");
                 }
             } catch (error) {
@@ -52,8 +43,7 @@ export default function AttendancePage() {
         if (id) {
             fetchParticipants();
         } else {
-            console.log("👉 Attention : l'ID est introuvable au chargement !");
-            setIsLoading(false); // On coupe le chargement si on a pas d'ID
+            setIsLoading(false);
         }
     }, [id]);
 
@@ -76,7 +66,6 @@ export default function AttendancePage() {
         try {
             const token = await AsyncStorage.getItem('userToken');
 
-            // On formate les données pour la Route 7
             const attendances = participants.map(p => ({
                 userId: p.id_user,
                 isPresent: p.isPresent
@@ -93,7 +82,7 @@ export default function AttendancePage() {
 
             if (res.ok) {
                 Alert.alert("Succès", "L'appel a été validé !");
-                router.back(); // Retour au profil après validation
+                router.back();
             } else {
                 Alert.alert("Erreur", "Un problème est survenu lors de la sauvegarde.");
             }

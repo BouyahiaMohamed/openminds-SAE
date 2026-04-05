@@ -8,7 +8,6 @@ import { API_URL } from '../config';
 import { COLORS } from '../constants/theme';
 
 export default function QuizScreen() {
-    // --- RÉCUPÉRATION DES PARAMS (ID + TITRE) ---
     const { id, titre } = useLocalSearchParams();
 
     const [quiz, setQuiz] = useState([]);
@@ -67,7 +66,6 @@ export default function QuizScreen() {
 
             const token = await AsyncStorage.getItem('userToken');
 
-            // 1. Enregistrement du score
             await fetch(`${API_URL}/formations/${id}/quiz/submit`, {
                 method: 'POST',
                 headers: {
@@ -78,7 +76,6 @@ export default function QuizScreen() {
             });
 
             if (isSuccess) {
-                // 2. Si succès, on récupère le badge
                 const resBadge = await fetch(`${API_URL}/formations/${id}/badge`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });

@@ -28,20 +28,15 @@ export default function HomePage() {
                     const savedPseudo = await AsyncStorage.getItem(`pseudo_${userKey}`);
 
                     if (savedPseudo) {
-                        // 1. S'il a défini un pseudo dans les paramètres, on met le pseudo
                         setDisplayName(savedPseudo);
                     } else if (user.isAdmin === 1) {
-                        // 2. Si c'est un Super-Admin
                         setDisplayName("Admin");
                     } else {
-                        // 3. Si le mot "formateur" est dans son mail ou son nom
                         const rawName = user.userName || user.username || user.email || "";
                         if (rawName.toLowerCase().includes('formateur')) {
                             setDisplayName("Formateur");
                         } else {
-                            // 4. Sinon, on met son nom, et si c'est un email on enlève le "@..."
                             const cleanName = rawName.split('@')[0];
-                            // On met la première lettre en majuscule
                             setDisplayName(cleanName.charAt(0).toUpperCase() + cleanName.slice(1));
                         }
                     }
@@ -73,7 +68,6 @@ export default function HomePage() {
                     const resFormations = await fetch(`${API_URL}/my-formations`, { method: 'GET', headers });
                     if (resFormations.ok) {
                         const data = await resFormations.json();
-                        console.log('🖼️ Première formation reçue:', JSON.stringify(data[0]));
                         const sortedData = data.sort((a, b) => new Date(a.DateHeure) - new Date(b.DateHeure));
                         setFormations(sortedData.map(form => ({
                             ...form,
@@ -91,7 +85,6 @@ export default function HomePage() {
                     const resFavs = await fetch(`${API_URL}/my-favorites`, { method: 'GET', headers });
                     if (resFavs.ok) {
                         const data = await resFavs.json();
-                        console.log('❤️ Premier favori reçu:', JSON.stringify(data[0]));
                         setFavorites(data.map(form => ({
                             ...form,
                             id: form.id,
